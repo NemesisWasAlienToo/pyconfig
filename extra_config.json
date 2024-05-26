@@ -1,0 +1,12 @@
+{
+    "name": "Extra Config",
+    "options": [
+      {
+        "name": "Extra Feature",
+        "type": "bool",
+        "default": false,
+        "dependencies": []
+      }
+    ]
+  }
+  

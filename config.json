@@ -1,0 +1,69 @@
+{
+    "name": "Main Config",
+    "options": [
+        {
+            "name": "Enable Feature A",
+            "type": "bool",
+            "default": true,
+            "dependencies": []
+        },
+        {
+            "name": "LogLevel",
+            "type": "multiple_choice",
+            "default": 1,
+            "choices": ["DEBUG", "INFO", "WARN", "ERROR"],
+            "dependencies": [
+                "Enable Feature A"
+            ]
+        },
+        {
+            "name": "Feature A Level",
+            "type": "int",
+            "default": 0,
+            "dependencies": [
+                "Enable Feature A"
+            ]
+        },
+        {
+            "name": "Feature S Level",
+            "type": "string",
+            "default": "Hello",
+            "dependencies": [
+                "Enable Feature A"
+            ]
+        },
+        {
+            "name": "Group 1",
+            "type": "group",
+            "default": [],
+            "dependencies": [
+                "Enable Feature A"
+            ],
+            "options": [
+                {
+                    "name": "Enable Sub Feature B",
+                    "type": "bool",
+                    "default": false,
+                    "dependencies": []
+                },
+                {
+                    "name": "Group 2",
+                    "type": "group",
+                    "default": [],
+                    "dependencies": [],
+                    "options": [
+                        {
+                            "name": "Enable Sub Feature C",
+                            "type": "bool",
+                            "default": false,
+                            "dependencies": []
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "include": [
+        "extra_config.json"
+    ]
+}
