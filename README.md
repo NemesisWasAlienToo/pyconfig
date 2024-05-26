@@ -15,15 +15,15 @@ pyconfig is a Python-based configuration management tool with a text-based user 
 Clone the repository and navigate to the project directory:
 
 ```bash
-git clone https://github.com/yourusername/configuration-manager.git
-cd configuration-manager
+git clone https://github.com/NemesisWasAlienToo/pyconfig.git
+cd pyconfig
 ```
 
 Install the required dependencies (if any). This project uses standard libraries, so no additional dependencies are required.
 
 ## Usage
 
-Run the pyconfig by executing the `config_manager.py` script:
+Run the pyconfig by executing the `pyconfig.py` script:
 
 ```bash
 python example.py
@@ -219,8 +219,8 @@ def main():
             json.dump(config_data, f, indent=4)
         print("Custom config saved")
 
-    config_manager = pyconfig.pyconfig(config_files=["config.json"], custom_save_func=custom_save)
-    config_manager.run()
+    config = pyconfig.pyconfig(config_files=["config.json"], custom_save_func=custom_save)
+    config.run()
 
 if __name__ == "__main__":
     main()
