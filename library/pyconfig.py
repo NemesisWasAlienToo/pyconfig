@@ -4,19 +4,6 @@ import curses.textpad
 import os
 
 class ConfigOption:
-    """
-    Represents a configuration option.
-
-    Attributes:
-        name (str): The name of the option.
-        option_type (str): The type of the option (e.g., 'bool', 'group', 'int', 'string', 'multiple_choice').
-        default (any): The default value of the option.
-        dependencies (list): A list of dependencies that this option depends on.
-        options (list): A list of sub-options if this option is a group.
-        choices (list): A list of choices if this option is a multiple choice option.
-        expanded (bool): Indicates whether a group option is expanded or not.
-    """
-
     def __init__(self, name, option_type, default=None, dependencies=None, options=None, choices=None, expanded=False):
         self.name = name
         self.option_type = option_type
@@ -28,7 +15,6 @@ class ConfigOption:
         self.expanded = expanded
 
     def to_dict(self):
-        """Convert the option to a dictionary format."""
         return {
             'name': self.name,
             'type': self.option_type,
@@ -39,17 +25,6 @@ class ConfigOption:
         }
 
 class pyconfig:
-    """
-    Manages configuration options, rendering them in a text-based UI using curses.
-
-    Attributes:
-        config_files (list): List of configuration file paths.
-        output_file (str): Path to the output file where the configuration will be saved.
-        custom_save_func (callable): Custom function to be called when saving the configuration.
-        options (list): List of configuration options.
-        config_name (str): Name of the configuration.
-    """
-
     def __init__(self, config_files, output_file="output_config.json", custom_save_func=None):
         self.config_files = config_files
         self.output_file = output_file
@@ -60,7 +35,6 @@ class pyconfig:
         self.apply_saved_config()
 
     def load_config(self):
-        """Load configuration from the specified files."""
         for config_file in self.config_files:
             with open(config_file, 'r') as f:
                 config_data = json.load(f)
@@ -72,7 +46,6 @@ class pyconfig:
                         self.parse_options(extra_config_data['options'], self.options)
 
     def parse_options(self, options_data, parent_list):
-        """Parse options from JSON data."""
         for option_data in options_data:
             option = ConfigOption(
                 name=option_data['name'],
@@ -88,132 +61,132 @@ class pyconfig:
             parent_list.append(option)
 
     def apply_saved_config(self):
-        """Apply saved configuration values from the output file."""
         if os.path.exists(self.output_file):
             with open(self.output_file, 'r') as f:
                 saved_config = json.load(f)
                 self.apply_config_to_options(self.options, saved_config)
 
     def apply_config_to_options(self, options, saved_config):
-        """Apply saved configuration values to the options."""
         for option in options:
             if option.option_type == 'group':
                 self.apply_config_to_options(option.options, saved_config)
             elif option.name in saved_config:
-                option.value = saved_config[option.name] if option.option_type != 'multiple_choice' else option.choices.index(saved_config[option.name])
+                value = saved_config[option.name]
+                option.value = saved_config[option.name] if option.option_type != 'multiple_choice' else option.choices.index(value if value else option.default)
+                vv = option.value
+        self.reset_hidden_dependent_options(self.options)
+
+    def reset_hidden_dependent_options(self, options):
+        for option in options:
+            if option.option_type == 'group':
+                self.reset_hidden_dependent_options(option.options)
+            elif not self.is_option_visible(option):
+                option.value = option.default if option.option_type != 'multiple_choice' else option.choices.index(option.default)
 
     def is_option_visible(self, option):
-        """Check if an option is visible based on its dependencies."""
         return all(self.is_dependency_met(dep) for dep in option.dependencies)
 
     def is_dependency_met(self, dependency_name):
-        """Check if a dependency is met."""
         return any((opt.name == dependency_name and opt.value) or 
                    (opt.option_type == 'group' and any(sub_opt.name == dependency_name and sub_opt.value for sub_opt in opt.options)) 
                    for opt in self.options)
 
-    def render_menu(self, stdscr, options, current_row, start_y=0, indent=0, idx=0, padding_left=4, initial_call=True, search_mode=False, search_query=""):
-        """
-        Render the configuration menu.
-
-        Args:
-            stdscr: Curses window object.
-            options (list): List of options to render.
-            current_row (int): The current highlighted row.
-            start_y (int): The starting y position.
-            indent (int): The current indentation level.
-            idx (int): The current index in the option list.
-            padding_left (int): The padding on the left side.
-            initial_call (bool): Indicates if this is the initial call to render the menu.
-            search_mode (bool): Indicates if search mode is active.
-            search_query (str): The current search query.
-        """
-        padding_top = 2 if initial_call else 0
-        current_y = start_y + padding_top
-        max_y, max_x = stdscr.getmaxyx()
-        visible_options = []
-
+    def flatten_options(self, options, depth=0):
+        flat_options = []
         for option in options:
-            if not self.is_option_visible(option) or (search_mode and search_query.lower() not in option.name.lower() and option.option_type != 'group'):
-                continue
+            if self.is_option_visible(option):
+                flat_options.append((option, depth))
+                if option.option_type == 'group' and option.expanded:
+                    flat_options.extend(self.flatten_options(option.options, depth + 1))
+        return flat_options
 
-            if option.option_type == 'group' and search_mode:
-                nested_visible = [opt for opt in option.options if search_query.lower() in opt.name.lower()]
-                if not nested_visible and search_query.lower() not in option.name.lower():
-                    continue
+    def search_options(self, options, query, depth=0):
+        flat_options = []
+        for option in options:
+            if self.is_option_visible(option):
+                if option.option_type == 'group':
+                    nested_options = self.search_options(option.options, query, depth + 1)
+                    if nested_options:
+                        option.expanded = True  # Ensure the group is expanded in search mode
+                        flat_options.append((option, depth))
+                        flat_options.extend(nested_options)
+                elif query.lower() in option.name.lower():
+                    flat_options.append((option, depth))
+        return flat_options
 
-            visible_options.append(option)
-            if option.option_type == 'group':
-                indicator = "[+]" if not option.expanded else "[-]"
-                display_text = f"{indicator} {option.name}"
-                self.display_option(stdscr, display_text, idx, current_row, current_y, indent, padding_left)
-                current_y += 1
-                idx += 1
-                if option.expanded or search_mode:
-                    nested_y, nested_idx, nested_visible = self.render_menu(stdscr, option.options, current_row, current_y, indent + 2, idx, padding_left, False, search_mode, search_query)
-                    current_y, idx = nested_y, nested_idx
-                    visible_options.extend(nested_visible)
-            else:
-                value_to_display = option.choices[option.value] if option.option_type == 'multiple_choice' else option.value or option.default
-                display_text = f"{option.name}: {value_to_display}"
-                if len(display_text) > max_x - indent - padding_left - 4:
-                    display_text = display_text[:max_x - indent - padding_left - 7] + "..."
-                self.display_option(stdscr, display_text, idx, current_row, current_y, indent, padding_left)
-                current_y += 1
-                idx += 1
-
-        if search_mode:
-            stdscr.addstr(max_y - 3, 2, f"Search: {search_query}")
-            stdscr.addstr(max_y - 2, 2, "Press ESC to exit search")
-
-        return current_y, idx, visible_options
-
-    def display_option(self, stdscr, text, idx, current_row, y, indent, padding_left):
-        """
-        Display a single option in the menu.
-
-        Args:
-            stdscr: Curses window object.
-            text (str): The text to display.
-            idx (int): The current index in the option list.
-            current_row (int): The current highlighted row.
-            y (int): The y position to display the text.
-            indent (int): The current indentation level.
-            padding_left (int): The padding on the left side.
-        """
-        if idx == current_row:
-            stdscr.attron(curses.color_pair(1))
-        stdscr.addstr(y, indent + padding_left, " " * len(text))
-        stdscr.addstr(y, indent + padding_left, text)
-        if idx == current_row:
-            stdscr.attroff(curses.color_pair(1))
+    def display_options(self, stdscr, flat_options, start_index, current_row, search_mode):
+        max_y, max_x = stdscr.getmaxyx()
+        display_limit = max_y - 4 if not search_mode else max_y - 6
+        for idx in range(start_index, min(start_index + display_limit, len(flat_options))):
+            option, depth = flat_options[idx]
+            indicator = "[+]" if option.option_type == 'group' and not option.expanded else "[-]" if option.option_type == 'group' else ""
+            name = f"{indicator} {option.name}" if option.option_type == 'group' else option.name
+            value = ""
+            if option.option_type == 'multiple_choice':
+                value = option.choices[option.value]
+            elif option.option_type == 'bool':
+                value = "True" if option.value else "False"
+            elif option.option_type in ['int', 'string']:
+                value = str(option.value)
+            display_text = f"{name}: {value}" if value != None else name
+            if len(display_text) > max_x - 2:
+                display_text = display_text[:max_x - 5] + "..."
+            if idx == current_row:
+                stdscr.attron(curses.color_pair(1))
+            stdscr.addstr(2 + idx - start_index, 2 + depth * 2, display_text)
+            if idx == current_row:
+                stdscr.attroff(curses.color_pair(1))
 
     def run(self):
-        """Run the configuration manager."""
         curses.wrapper(self.menu_loop)
 
     def menu_loop(self, stdscr):
-        """
-        Main loop for the menu.
-
-        Args:
-            stdscr: Curses window object.
-        """
         curses.curs_set(0)
         stdscr.keypad(True)
         curses.start_color()
         curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_WHITE)
         current_row = 0
         search_mode, search_query = False, ""
+        start_index = 0
+
         while True:
             stdscr.clear()
             stdscr.border(0)
             stdscr.addstr(0, 2, f" {self.config_name} ")
-            if not search_mode:
-                stdscr.addstr(curses.LINES - 2, 2, " Press 's' to Save, 'q' to Exit, 'c' to Collapse Group, '/' to Search ")
-            current_y, idx, visible_options = self.render_menu(stdscr, self.options, current_row, start_y=1, search_mode=search_mode, search_query=search_query)
+            max_y, max_x = stdscr.getmaxyx()
+            if not search_mode and max_y > 2:
+                stdscr.addstr(max_y - 2, 2, " Press 's' to Save, 'q' to Exit, 'c' to Collapse Group, '/' to Search ")
+
+            if search_mode:
+                flat_options = self.search_options(self.options, search_query)
+            else:
+                flat_options = self.flatten_options(self.options)
+
+            # Adjust current_row and start_index to prevent out-of-range errors
+            if current_row >= len(flat_options):
+                current_row = len(flat_options) - 1
+            if current_row < 0:
+                current_row = 0
+            if current_row < start_index:
+                start_index = current_row
+            elif current_row >= start_index + (max_y - 6 if search_mode else max_y - 4):
+                start_index = current_row - (max_y - 7 if search_mode else max_y - 5)
+            
+            self.display_options(stdscr, flat_options, start_index, current_row, search_mode)
+
+            if search_mode:
+                if max_y > 3:
+                    stdscr.addstr(max_y - 3, 2, f"Search: {search_query}")
+                if max_y > 2:
+                    stdscr.addstr(max_y - 2, 2, "Press ESC to exit search")
+
             stdscr.refresh()
             key = stdscr.getch()
+
+            if key == curses.KEY_RESIZE:
+                stdscr.clear()
+                max_y, max_x = stdscr.getmaxyx()
+                continue
 
             if search_mode:
                 if key in (curses.KEY_BACKSPACE, 127):
@@ -226,57 +199,53 @@ class pyconfig:
                 elif 32 <= key <= 126:
                     search_query += chr(key)
                 elif key in (curses.KEY_UP, curses.KEY_DOWN):
-                    current_row = (current_row + (-1 if key == curses.KEY_UP else 1)) % len(visible_options)
+                    if key == curses.KEY_UP and current_row > 0:
+                        current_row -= 1
+                    elif key == curses.KEY_DOWN and current_row < len(flat_options) - 1:
+                        current_row += 1
                 elif key in (curses.KEY_ENTER, 10, 13):
-                    self.handle_enter(visible_options, current_row, stdscr, search_mode)
+                    self.handle_enter(flat_options, current_row, stdscr, search_mode)
             else:
                 if key in (curses.KEY_UP, curses.KEY_DOWN):
-                    current_row = (current_row + (-1 if key == curses.KEY_UP else 1)) % len(visible_options)
+                    if key == curses.KEY_UP and current_row > 0:
+                        current_row -= 1
+                        if current_row < start_index:
+                            start_index -= 1
+                    elif key == curses.KEY_DOWN and current_row < len(flat_options) - 1:
+                        current_row += 1
+                        if current_row >= start_index + max_y - 4:
+                            start_index += 1
                 elif key in (curses.KEY_ENTER, 10, 13):
-                    self.handle_enter(visible_options, current_row, stdscr, search_mode)
+                    self.handle_enter(flat_options, current_row, stdscr, search_mode)
                 elif key == ord('s'):
                     self.save_config(stdscr)
                 elif key == ord('q'):
                     break
                 elif key == ord('c'):
-                    current_row = self.collapse_current_group(visible_options, current_row)
+                    current_row = self.collapse_current_group(flat_options, current_row, search_mode)
                 elif key == ord('/'):
                     search_mode, search_query, current_row = True, "", 0
 
-    def handle_enter(self, options, row, stdscr, search_mode):
-        """
-        Handle the Enter key press.
-
-        Args:
-            options (list): List of options.
-            row (int): The current row.
-            stdscr: Curses window object.
-            search_mode (bool): Indicates if search mode is active.
-        """
-        if not options:
+    def handle_enter(self, flat_options, row, stdscr, search_mode):
+        if not flat_options:
             return
-        selected_option = options[row]
+        selected_option, _ = flat_options[row]
         if selected_option.option_type == 'bool':
             selected_option.value = not selected_option.value
+            if not selected_option.value:
+                self.reset_dependent_options(selected_option)
         elif selected_option.option_type == 'group':
-            selected_option.expanded = not selected_option.expanded
+            if not search_mode:
+                selected_option.expanded = not selected_option.expanded
         elif selected_option.option_type in ['int', 'string']:
             self.edit_option(stdscr, selected_option)
         elif selected_option.option_type == 'multiple_choice':
             self.edit_multiple_choice_option(stdscr, selected_option)
 
-        # Remove setting search_mode to False to stay in search mode
-        # if not search_mode:
-        #     search_mode = False
-
     def edit_option(self, stdscr, option):
-        """
-        Edit a configuration option.
-
-        Args:
-            stdscr: Curses window object.
-            option (ConfigOption): The option to edit.
-        """
+        if option.value == None:
+            return
+        
         original_value = option.value
         curses.curs_set(1)
         stdscr.clear()
@@ -314,13 +283,6 @@ class pyconfig:
         curses.curs_set(0)
 
     def edit_multiple_choice_option(self, stdscr, option):
-        """
-        Edit a multiple choice configuration option.
-
-        Args:
-            stdscr: Curses window object.
-            option (ConfigOption): The option to edit.
-        """
         curses.curs_set(0)
         current_choice = option.value if option.value is not None else 0
         original_choice = option.value
@@ -350,33 +312,22 @@ class pyconfig:
                 option.value = original_choice
                 break
 
-    def collapse_current_group(self, flat_options, current_row):
-        """
-        Collapse the currently selected group.
-
-        Args:
-            flat_options (list): Flattened list of options.
-            current_row (int): The current row index.
-
-        Returns:
-            int: The new current row index.
-        """
-        selected_option = flat_options[current_row]
+    def collapse_current_group(self, flat_options, current_row, search_mode):
+        selected_option, _ = flat_options[current_row]
         if selected_option.option_type == 'group':
-            selected_option.expanded = False
+            selected_option.expanded = not selected_option.expanded
+            if search_mode:
+                # Collapse all children in search mode to reflect changes
+                for option, _ in flat_options:
+                    if option in selected_option.options:
+                        option.expanded = selected_option.expanded
             return current_row
-        for idx, option in enumerate(flat_options):
+        for idx, (option, depth) in enumerate(flat_options):
             if option.option_type == 'group' and option.expanded and selected_option in option.options:
                 option.expanded = False
                 return idx
 
     def save_config(self, stdscr):
-        """
-        Save the current configuration to the output file.
-
-        Args:
-            stdscr: Curses window object.
-        """
         config_data = self.flatten_options_key_value(self.options)
         with open(self.output_file, 'w') as f:
             json.dump(config_data, f, indent=4)
@@ -391,15 +342,6 @@ class pyconfig:
         stdscr.getch()
 
     def flatten_options_key_value(self, options):
-        """
-        Flatten the options into a key-value dictionary.
-
-        Args:
-            options (list): List of options.
-
-        Returns:
-            dict: Flattened key-value representation of the options.
-        """
         config_data = {}
         for option in options:
             if option.option_type == 'group':
@@ -408,6 +350,13 @@ class pyconfig:
                     nested_data = {nested_key: None for nested_key in nested_data}
                 config_data.update(nested_data)
             else:
-                value_to_save = option.choices[option.value] if option.option_type == 'multiple_choice' else option.value or option.default
+                value_to_save = option.choices[option.value] if option.option_type == 'multiple_choice' else (option.value if option.value != None else option.default)
                 config_data[option.name] = None if not self.is_option_visible(option) else value_to_save
         return config_data
+
+    def reset_dependent_options(self, option):
+        for opt in self.options:
+            if option.name in opt.dependencies:
+                opt.value = opt.default if opt.option_type != 'multiple_choice' else opt.choices.index(opt.default)
+                if opt.option_type == 'group':
+                    self.reset_dependent_options(opt)
