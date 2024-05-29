@@ -7,7 +7,8 @@ def main():
             json.dump(config_data, f, indent=4)
         print("Custom config saved")
 
-    config = pyconfig.pyconfig(config_files=["config.json"], custom_save_func=custom_save)
+    config = pyconfig.pyconfig(config_files=["config.json"], custom_save_func=custom_save, expanded=True, show_disabled=True)
+    # config = pyconfig.pyconfig(config_files=["config.json"], custom_save_func=custom_save, expanded=True, show_disabled=False)
     config.run()
 
 if __name__ == "__main__":

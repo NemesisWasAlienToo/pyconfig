@@ -8,6 +8,11 @@
             "dependencies": []
         },
         {
+            "name": "Enable Feature B",
+            "type": "bool",
+            "default": 0
+        },
+        {
             "name": "LogLevel",
             "type": "multiple_choice",
             "default": "DEBUG",
@@ -17,19 +22,12 @@
             ]
         },
         {
-            "name": "Feature A Level",
+            "name": "Depens on A and B",
             "type": "int",
             "default": 0,
             "dependencies": [
-                "Enable Feature A"
-            ]
-        },
-        {
-            "name": "Feature A Level 1",
-            "type": "int",
-            "default": 0,
-            "dependencies": [
-                "Enable Feature A"
+                "Enable Feature A",
+                "Enable Feature B"
             ]
         },
         {
@@ -75,20 +73,17 @@
                 {
                     "name": "Enable Sub Feature B",
                     "type": "bool",
-                    "default": false,
-                    "dependencies": []
+                    "default": false
                 },
                 {
                     "name": "Group 2",
                     "type": "group",
                     "default": [],
-                    "dependencies": [],
                     "options": [
                         {
                             "name": "Enable Sub Feature C",
                             "type": "bool",
-                            "default": false,
-                            "dependencies": []
+                            "default": false
                         }
                     ]
                 }

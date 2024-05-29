@@ -25,10 +25,12 @@ class ConfigOption:
         }
 
 class pyconfig:
-    def __init__(self, config_files, output_file="output_config.json", custom_save_func=None):
+    def __init__(self, config_files, output_file="output_config.json", custom_save_func=None, expanded=False, show_disabled=False):
         self.config_files = config_files
         self.output_file = output_file
         self.custom_save_func = custom_save_func
+        self.show_disabled = show_disabled
+        self.expanded = expanded
         self.options = []
         self.config_name = ""
         self.load_config()
@@ -45,19 +47,22 @@ class pyconfig:
                         extra_config_data = json.load(f)
                         self.parse_options(extra_config_data['options'], self.options)
 
-    def parse_options(self, options_data, parent_list):
+    def parse_options(self, options_data, parent_list, group_dependencies = []):
         for option_data in options_data:
             option = ConfigOption(
                 name=option_data['name'],
                 option_type=option_data['type'],
                 default=option_data.get('default'),
-                dependencies=option_data.get('dependencies'),
+                dependencies=option_data.get('dependencies', []) + group_dependencies,
                 choices=option_data.get('choices', []),
-                expanded=option_data.get('expanded', False),
+                expanded=self.expanded,
                 options=[]
             )
             if option.option_type == 'group' and 'options' in option_data:
-                self.parse_options(option_data['options'], option.options)
+                self.parse_options(option_data['options'], option.options, option.dependencies)
+                [opt.dependencies.extend(group_dependencies) for opt in option.options]
+            elif option.option_type == 'multiple_choice':
+                option.value = option.choices.index(option.default)
             parent_list.append(option)
 
     def apply_saved_config(self):
@@ -80,10 +85,10 @@ class pyconfig:
         for option in options:
             if option.option_type == 'group':
                 self.reset_hidden_dependent_options(option.options)
-            elif not self.is_option_visible(option):
+            elif not self.is_option_available(option):
                 option.value = option.default if option.option_type != 'multiple_choice' else option.choices.index(option.default)
 
-    def is_option_visible(self, option):
+    def is_option_available(self, option):
         return all(self.is_dependency_met(dep) for dep in option.dependencies)
 
     def is_dependency_met(self, dependency_name):
@@ -94,16 +99,20 @@ class pyconfig:
     def flatten_options(self, options, depth=0):
         flat_options = []
         for option in options:
-            if self.is_option_visible(option):
-                flat_options.append((option, depth))
-                if option.option_type == 'group' and option.expanded:
-                    flat_options.extend(self.flatten_options(option.options, depth + 1))
+            if not self.is_option_available(option):
+                if option.option_type != 'group':
+                    option.value = None
+                if not self.show_disabled:
+                    continue
+            flat_options.append((option, depth))
+            if option.option_type == 'group' and option.expanded:
+                flat_options.extend(self.flatten_options(option.options, depth + 1))
         return flat_options
 
     def search_options(self, options, query, depth=0):
         flat_options = []
         for option in options:
-            if self.is_option_visible(option):
+            if self.show_disabled or self.is_option_available(option):
                 if option.option_type == 'group':
                     nested_options = self.search_options(option.options, query, depth + 1)
                     if nested_options:
@@ -122,12 +131,15 @@ class pyconfig:
             indicator = "[+]" if option.option_type == 'group' and not option.expanded else "[-]" if option.option_type == 'group' else ""
             name = f"{indicator} {option.name}" if option.option_type == 'group' else option.name
             value = ""
-            if option.option_type == 'multiple_choice':
+            if option.value == None:
+                value = "[disabled]"
+            elif option.option_type == 'multiple_choice':
                 value = option.choices[option.value]
             elif option.option_type == 'bool':
                 value = "True" if option.value else "False"
             elif option.option_type in ['int', 'string']:
                 value = str(option.value)
+
             display_text = f"{name}: {value}" if value != None else name
             if len(display_text) > max_x - 2:
                 display_text = display_text[:max_x - 5] + "..."
@@ -155,7 +167,7 @@ class pyconfig:
             stdscr.addstr(0, 2, f" {self.config_name} ")
             max_y, max_x = stdscr.getmaxyx()
             if not search_mode and max_y > 2:
-                stdscr.addstr(max_y - 2, 2, " Press 's' to Save, 'q' to Exit, 'c' to Collapse Group, '/' to Search ")
+                stdscr.addstr(max_y - 2, 2, "Press 's' to Save, 'q' to Exit, 'c' to Collapse Group, '/' to Search" + ", 'e' to Enable" if self.show_disabled else "")
 
             if search_mode:
                 flat_options = self.search_options(self.options, search_query)
@@ -223,17 +235,31 @@ class pyconfig:
                     break
                 elif key == ord('c'):
                     current_row = self.collapse_current_group(flat_options, current_row, search_mode)
+                elif key == ord('e'):
+                    self.handle_force_enable(flat_options, current_row, stdscr, search_mode)
                 elif key == ord('/'):
                     search_mode, search_query, current_row = True, "", 0
+
+    def handle_force_enable(self, flat_options, row, stdscr, search_mode):
+        if not flat_options:
+            return
+        selected_option, _ = flat_options[row]
+        if selected_option.value != None or selected_option.option_type == 'group':
+            return
+        self.force_enable_option(selected_option)
+        
 
     def handle_enter(self, flat_options, row, stdscr, search_mode):
         if not flat_options:
             return
+        
         selected_option, _ = flat_options[row]
+
+        if selected_option.value == None and selected_option.option_type != 'group':
+            return
+        
         if selected_option.option_type == 'bool':
             selected_option.value = not selected_option.value
-            if not selected_option.value:
-                self.reset_dependent_options(selected_option)
         elif selected_option.option_type == 'group':
             if not search_mode:
                 selected_option.expanded = not selected_option.expanded
@@ -241,6 +267,8 @@ class pyconfig:
             self.edit_option(stdscr, selected_option)
         elif selected_option.option_type == 'multiple_choice':
             self.edit_multiple_choice_option(stdscr, selected_option)
+
+        self.reset_dependent_options(selected_option, self.options)
 
     def edit_option(self, stdscr, option):
         if option.value == None:
@@ -326,6 +354,8 @@ class pyconfig:
             if option.option_type == 'group' and option.expanded and selected_option in option.options:
                 option.expanded = False
                 return idx
+            
+        return current_row
 
     def save_config(self, stdscr):
         config_data = self.flatten_options_key_value(self.options)
@@ -334,6 +364,7 @@ class pyconfig:
 
         if self.custom_save_func:
             self.custom_save_func(config_data)
+            # self.custom_save_func(config_data, self.options)
 
         stdscr.clear()
         stdscr.addstr(0, 0, "Configuration saved successfully.")
@@ -346,17 +377,28 @@ class pyconfig:
         for option in options:
             if option.option_type == 'group':
                 nested_data = self.flatten_options_key_value(option.options)
-                if not self.is_option_visible(option):
+                if not self.is_option_available(option):
                     nested_data = {nested_key: None for nested_key in nested_data}
                 config_data.update(nested_data)
             else:
-                value_to_save = option.choices[option.value] if option.option_type == 'multiple_choice' else (option.value if option.value != None else option.default)
-                config_data[option.name] = None if not self.is_option_visible(option) else value_to_save
+                value_to_save = None if option.value == None else option.choices[option.value] if option.option_type == 'multiple_choice' else (option.value if option.value != None else option.default)
+                config_data[option.name] = None if not self.is_option_available(option) else value_to_save
         return config_data
 
-    def reset_dependent_options(self, option):
-        for opt in self.options:
+    def reset_dependent_options(self, option, options):
+        for opt in options:
             if option.name in opt.dependencies:
-                opt.value = opt.default if opt.option_type != 'multiple_choice' else opt.choices.index(opt.default)
+                if self.is_option_available(opt):
+                    opt.value = opt.default if opt.option_type != 'multiple_choice' else opt.choices.index(opt.default)
                 if opt.option_type == 'group':
-                    self.reset_dependent_options(opt)
+                    self.reset_dependent_options(option, opt.options)
+
+    def force_enable_option(self, option):
+        if option.option_type == 'bool':
+            option.value = True
+        elif option.option_type == 'multiple_choice':
+            option.value = option.choices.index(option.default)
+        else:
+            option.value = option.default
+        [self.force_enable_option(opt) for opt in self.options if opt.name in option.dependencies]
+        self.reset_dependent_options(option, self.options)
