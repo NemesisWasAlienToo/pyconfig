@@ -26,10 +26,11 @@ class ConfigOption:
         }
 
 class pyconfig:
-    def __init__(self, config_files, output_file="output_config.json", custom_save_func=None, expanded=False, show_disabled=False):
+    def __init__(self, config_files, output_file="output_config.json", custom_save_func=None, init_func=None, expanded=False, show_disabled=False):
         self.config_files = config_files
         self.output_file = output_file
         self.custom_save_func = custom_save_func
+        self.init_func = init_func
         self.show_disabled = show_disabled
         self.expanded = expanded
         self.options = []
@@ -38,6 +39,10 @@ class pyconfig:
         self.apply_saved_config()
 
     def load_config(self):
+        # Run the custom initialization function if provided
+        if self.init_func:
+            self.init_func(self)
+
         for config_file in self.config_files:
             with open(config_file, 'r') as f:
                 config_data = json.load(f)

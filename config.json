@@ -4,13 +4,15 @@
         {
             "name": "ENABLE_FEATURE_A",
             "type": "bool",
-            "default": true,
-            "dependencies": []
+            "default": true
         },
         {
             "name": "ENABLE_FEATURE_B",
             "type": "bool",
-            "default": 0
+            "default": 0,
+            "dependencies": [
+                "UNIX"
+            ]
         },
         {
             "name": "LogLevel",
