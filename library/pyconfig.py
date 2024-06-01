@@ -2,6 +2,7 @@ import json
 import curses
 import curses.textpad
 import os
+import re
 
 class ConfigOption:
     def __init__(self, name, option_type, default=None, dependencies=None, options=None, choices=None, expanded=False):
@@ -78,7 +79,6 @@ class pyconfig:
             elif option.name in saved_config:
                 value = saved_config[option.name]
                 option.value = saved_config[option.name] if option.option_type != 'multiple_choice' else option.choices.index(value if value else option.default)
-                vv = option.value
         self.reset_hidden_dependent_options(self.options)
 
     def reset_hidden_dependent_options(self, options):
@@ -89,12 +89,25 @@ class pyconfig:
                 option.value = option.default if option.option_type != 'multiple_choice' else option.choices.index(option.default)
 
     def is_option_available(self, option):
-        return all(self.is_dependency_met(dep) for dep in option.dependencies)
+        return all(self.is_dependency_met(dep, self.options) for dep in option.dependencies)
+    
+    def option_meets_dependency(self, option, dependency_string):
+        if option.option_type == 'group':
+            return False
+        if dependency_string.startswith('!'):
+            key = dependency_string[1:]
+            return (option.name == key and option.value == False)
+        elif match := re.match(r'^([^=]+)=([^=]+)$', dependency_string):
+            key, value = match.groups()
+            values = [name.strip() for name in value.split(',')]
+            return ((option.name == key and option.value in values) or 
+                   (option.option_type == 'multiple_choice' and option.choices[option.value] in values) or
+                   (option.option_type == 'int' and str(option.value) in values) or
+                   (option.option_type == 'string' and option.value in values))
+        return (option.name == dependency_string and option.value)
 
-    def is_dependency_met(self, dependency_name):
-        return any((opt.name == dependency_name and opt.value) or 
-                   (opt.option_type == 'group' and any(sub_opt.name == dependency_name and sub_opt.value for sub_opt in opt.options)) 
-                   for opt in self.options)
+    def is_dependency_met(self, dependency_string, options):
+        return any(self.option_meets_dependency(opt, dependency_string) for opt in options)
 
     def flatten_options(self, options, depth=0):
         flat_options = []
@@ -364,7 +377,6 @@ class pyconfig:
 
         if self.custom_save_func:
             self.custom_save_func(config_data)
-            # self.custom_save_func(config_data, self.options)
 
         stdscr.clear()
         stdscr.addstr(0, 0, "Configuration saved successfully.")
@@ -387,18 +399,56 @@ class pyconfig:
 
     def reset_dependent_options(self, option, options):
         for opt in options:
-            if option.name in opt.dependencies:
-                if self.is_option_available(opt):
+            if any(self.option_meets_dependency(option, dep) for dep in opt.dependencies):
+                if self.is_option_available(opt) and opt.value == None:
                     opt.value = opt.default if opt.option_type != 'multiple_choice' else opt.choices.index(opt.default)
+                    self.reset_dependent_options(opt, self.options)
                 if opt.option_type == 'group':
                     self.reset_dependent_options(option, opt.options)
 
-    def force_enable_option(self, option):
+    # def set_option_value(self, option, value):
+    #     option.value = value
+    #     self.reset_dependent_options(option, self.options)
+
+    def option_in_dependency(self, option, dependency_string):
+        if option.option_type == 'group':
+            return False
+        if dependency_string.startswith('!'):
+            return option.name == dependency_string[1:]
+        elif match := re.match(r'^([^=]+)=([^=]+)$', dependency_string):
+            key, _ = match.groups()
+            return option.name == key
+        return option.name == dependency_string
+
+    def extract_force_enable_value_if_applicable(self, option, dependency_string):
+        if option.option_type == 'group':
+            return
+        if dependency_string.startswith('!'):
+            key = dependency_string[1:]
+            if option.name == key and option.value:
+                return False
+        elif match := re.match(r'^([^=]+)=([^=]+)$', dependency_string):
+            key, value = match.groups()
+            if option.name == key:
+                if option.option_type == 'multiple_choice':
+                    return option.value if option.choices[option.value] in value else option.choices.index(option.defalut)
+                elif str(option.value) not in value:
+                    [name.strip() for name in value.split(',')][0]
+                return option.value
+        return True if option.name == dependency_string else None
+
+    def force_enable_option(self, option, set_value = None):
         if option.option_type == 'bool':
-            option.value = True
+            option.value = set_value if set_value != None else True
         elif option.option_type == 'multiple_choice':
-            option.value = option.choices.index(option.default)
+            option.value = set_value if set_value != None else option.choices.index(option.default)
         else:
-            option.value = option.default
-        [self.force_enable_option(opt) for opt in self.options if opt.name in option.dependencies]
+            option.value = set_value if set_value != None else option.default
+        
         self.reset_dependent_options(option, self.options)
+
+        for opt in self.options:
+            for dep in option.dependencies:
+                if self.option_in_dependency(opt, dep):
+                    extracted_value = self.extract_force_enable_value_if_applicable(opt, dep)
+                    self.force_enable_option(opt, extracted_value)

@@ -2,13 +2,13 @@
     "name": "Main Config",
     "options": [
         {
-            "name": "Enable Feature A",
+            "name": "ENABLE_FEATURE_A",
             "type": "bool",
             "default": true,
             "dependencies": []
         },
         {
-            "name": "Enable Feature B",
+            "name": "ENABLE_FEATURE_B",
             "type": "bool",
             "default": 0
         },
@@ -16,9 +16,17 @@
             "name": "LogLevel",
             "type": "multiple_choice",
             "default": "DEBUG",
-            "choices": ["DEBUG", "INFO", "WARN", "ERROR"],
+            "choices": ["DEBUG", "INFO", "WqARN", "ERROR"],
             "dependencies": [
-                "Enable Feature A"
+                "ENABLE_FEATURE_A"
+            ]
+        },
+        {
+            "name": "INTERMEDIATE_OPTION",
+            "type": "bool",
+            "default": true,
+            "dependencies": [
+                "ENABLE_FEATURE_A"
             ]
         },
         {
@@ -26,8 +34,11 @@
             "type": "int",
             "default": 0,
             "dependencies": [
-                "Enable Feature A",
-                "Enable Feature B"
+                "ENABLE_FEATURE_A",
+                "ENABLE_FEATURE_B",
+                "LogLevel=DEBUG,INFO",
+                "!INTERMEDIATE_OPTION",
+                "DOMAIN_ADDRESS=localhost,hi"
             ]
         },
         {
@@ -35,7 +46,7 @@
             "type": "int",
             "default": 0,
             "dependencies": [
-                "Enable Feature A"
+                "ENABLE_FEATURE_A"
             ]
         },
         {
@@ -43,7 +54,7 @@
             "type": "int",
             "default": 0,
             "dependencies": [
-                "Enable Feature A"
+                "ENABLE_FEATURE_A"
             ]
         },
         {
@@ -51,15 +62,15 @@
             "type": "int",
             "default": 0,
             "dependencies": [
-                "Enable Feature A"
+                "ENABLE_FEATURE_A"
             ]
         },
         {
-            "name": "Feature S Level",
+            "name": "DOMAIN_ADDRESS",
             "type": "string",
-            "default": "Hello",
+            "default": "localhost",
             "dependencies": [
-                "Enable Feature A"
+                "ENABLE_FEATURE_A"
             ]
         },
         {
@@ -67,7 +78,7 @@
             "type": "group",
             "default": [],
             "dependencies": [
-                "Enable Feature A"
+                "ENABLE_FEATURE_A"
             ],
             "options": [
                 {
