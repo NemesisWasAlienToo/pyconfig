@@ -1,5 +1,4 @@
 bk*
 .vs*
 __pycache__
-custom_output_config.json
-output_config.json
+*output*

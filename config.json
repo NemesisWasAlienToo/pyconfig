@@ -4,21 +4,22 @@
         {
             "name": "ENABLE_FEATURE_A",
             "type": "bool",
-            "default": true
+            "default": true,
+            "data": ["WIN32"]
         },
         {
             "name": "ENABLE_FEATURE_B",
             "type": "bool",
             "default": 0,
             "dependencies": [
-                "UNIX"
+                "OS=WIN32"
             ]
         },
         {
-            "name": "LogLevel",
+            "name": "LOG_LEVEL",
             "type": "multiple_choice",
             "default": "DEBUG",
-            "choices": ["DEBUG", "INFO", "WqARN", "ERROR"],
+            "choices": ["DEBUG", "INFO", "WARN", "ERROR"],
             "dependencies": [
                 "ENABLE_FEATURE_A"
             ]
@@ -32,19 +33,18 @@
             ]
         },
         {
-            "name": "Depens on A and B",
+            "name": "DEPENDS_ON_A_B",
             "type": "int",
             "default": 0,
             "dependencies": [
                 "ENABLE_FEATURE_A",
-                "ENABLE_FEATURE_B",
                 "LogLevel=DEBUG,INFO",
                 "!INTERMEDIATE_OPTION",
                 "DOMAIN_ADDRESS=localhost,hi"
             ]
         },
         {
-            "name": "Feature A Level 2",
+            "name": "FEATURE_A_LEVEL_2",
             "type": "int",
             "default": 0,
             "dependencies": [
@@ -52,7 +52,7 @@
             ]
         },
         {
-            "name": "Feature A Level 3",
+            "name": "FEATURE_A_LEVEL_3",
             "type": "int",
             "default": 0,
             "dependencies": [
@@ -60,7 +60,7 @@
             ]
         },
         {
-            "name": "Feature A Level 4",
+            "name": "FEATURE_A_LEVEL_4",
             "type": "int",
             "default": 0,
             "dependencies": [

@@ -5,19 +5,25 @@ from library.pyconfig import ConfigOption
 # Example custom initialization function
 def init_function(config_instance):
     os_specific_option = ConfigOption(
-        name='UNIX',
-        option_type='bool',
-        default=True
+        name='OS',
+        option_type='string',
+        default="UNIX",
+        external=True
     )
     config_instance.options.append(os_specific_option)
 
-def main():
-    def custom_save(config_data):
-        with open("custom_output_config.json", 'w') as f:
-            json.dump(config_data, f, indent=4)
-        print("Custom config saved")
+def custom_save(json_data, _):
+    with open("output_defconfig", 'w') as f:
+        for key, value in json_data.items():
+            if value != None and value != False:
+                if isinstance(value, str):
+                    f.write(f"{key}=\"{value}\"\n")
+                else:
+                    f.write(f"{key}={value if value != True else 'y'}\n")
+    print("Custom config saved")
 
-    config = pyconfig.pyconfig(config_files=["config.json"], custom_save_func=custom_save, expanded=True, show_disabled=True, init_func=init_function)
+def main():
+    config = pyconfig.pyconfig(config_files=["config.json"], init_func=init_function, save_func=custom_save, expanded=True, show_disabled=True)
     config.run()
 
 if __name__ == "__main__":
