@@ -44,6 +44,14 @@
             ]
         },
         {
+            "name": "INTERMEDIATE_OPTION_OFF",
+            "type": "int",
+            "default": 0,
+            "dependencies": [
+                "!INTERMEDIATE_OPTION"
+            ]
+        },
+        {
             "name": "FEATURE_A_LEVEL_2",
             "type": "int",
             "default": 0,
@@ -78,7 +86,6 @@
         {
             "name": "Group 1",
             "type": "group",
-            "default": [],
             "dependencies": [
                 "ENABLE_FEATURE_A"
             ],
@@ -91,7 +98,6 @@
                 {
                     "name": "Group 2",
                     "type": "group",
-                    "default": [],
                     "options": [
                         {
                             "name": "Enable Sub Feature C",

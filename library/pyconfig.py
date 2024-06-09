@@ -155,11 +155,14 @@ class pyconfig:
         return all(self.is_dependency_met(dep, self.options) for dep in option.dependencies)
     
     def option_meets_dependency(self, option, dependency_string):
-        if option.option_type == 'group' or option.value == None:
+        if option.option_type == 'group':
             return False
-        if dependency_string.startswith('!'):
+        elif dependency_string.startswith('!'):
             key = dependency_string[1:]
-            return (option.name == key and option.value == False)
+            # return (option.name == key and option.value == False)
+            return (option.name == key and not option.value)
+        elif option.value == None:
+            return False
         elif match := re.match(r'^([^=]+)=([^=]+)$', dependency_string):
             key, value = match.groups()
             values = [name.strip() for name in value.split(',')]
@@ -180,6 +183,9 @@ class pyconfig:
                     option.value = None
                 if not self.show_disabled:
                     continue
+            else:
+                if option.value == None:
+                    option.value = option.choices.index(option.default) if option.option_type == 'multiple_choice' else option.default
             flat_options.append((option, depth))
             if option.option_type == 'group' and option.expanded:
                 flat_options.extend(self.flatten_options(option.options, depth + 1))
