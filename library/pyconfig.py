@@ -155,7 +155,7 @@ class pyconfig:
         return all(self.is_dependency_met(dep, self.options) for dep in option.dependencies)
     
     def option_meets_dependency(self, option, dependency_string):
-        if option.option_type == 'group':
+        if option.option_type == 'group' or option.value == None:
             return False
         if dependency_string.startswith('!'):
             key = dependency_string[1:]
