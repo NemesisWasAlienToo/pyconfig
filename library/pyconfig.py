@@ -281,7 +281,7 @@ class pyconfig:
             value = ""
             if option.external:
                 value = f"{option.value} [external]"
-            elif option.value == None:
+            elif option.value == None and option.option_type != 'group':
                 value = "[disabled]"
             elif option.option_type == 'multiple_choice':
                 value = option.choices[option.value]
