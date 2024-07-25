@@ -2,7 +2,7 @@
     "name": "Extra Config",
     "options": [
       {
-        "name": "Extra Feature",
+        "name": "EXTRA_FEATURE",
         "type": "bool",
         "default": false,
         "dependencies": []

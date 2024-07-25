@@ -44,6 +44,14 @@ class pyconfig:
         self.load_config()
         self.apply_saved_config()
 
+        self.save_key = ord('s')
+        self.collapse_key = ord('c')
+        self.quite_key = ord('q')
+        self.search_key = ord('/')
+        self.help_key = ord('h')
+        self.exit_search_key = curses.KEY_F1
+        self.force_enable_key = curses.KEY_F2
+
     def show_help(self, stdscr):
         help_text = [
             "Help Page",
@@ -54,10 +62,10 @@ class pyconfig:
             "  s: Save configuration",
             "  q: Quit",
             "  c: Collapse/Expand group",
-            "  F9: To forece enable (if disable item is visible)",
             "  /: Search",
-            "  F10: Exit search",
             "  h: Show this help page",
+            "  F1: Exit search",
+            "  F2: To forece enable (if disable item is visible)",
             "",
             "How it works:",
             "  - Use the arrow keys to navigate through the options.",
@@ -76,7 +84,7 @@ class pyconfig:
 
             # stdscr.addstr(0, 2, " Help Page ")
             if max_y > 2:
-                stdscr.addstr(max_y - 2, 2, "Press 'q' to return to the menu or UP/DOWN to navigate")
+                stdscr.addstr(max_y - 2, 2, "Press 'q' to return to the menu or UP/DOWN to scroll")
 
             display_limit = max_y - 3
             for idx, line in enumerate(help_text[start_index:start_index + display_limit]):
@@ -232,13 +240,11 @@ class pyconfig:
 
         while True:
             stdscr.clear()
-            # stdscr.border(0)
             curses.curs_set(0)  # Hide the cursor
             max_y, max_x = stdscr.getmaxyx()
             wrapped_text = textwrap.wrap(message, max_x - 4)
             # Calculate positions
             question_y = max_y // 2 - 1
-            # question_x = (max_x - len(message)) // 2
             yes_y = question_y + 2
             yes_x = (max_x // 2) - len(yes_option) - 2
             no_y = yes_y
@@ -342,7 +348,7 @@ class pyconfig:
                 if max_y > 3:
                     stdscr.addstr(max_y - 3, 2, f"Search: {search_query}")
                 if max_y > 2:
-                    stdscr.addstr(max_y - 2, 2, "Press F10 to exit search")
+                    stdscr.addstr(max_y - 2, 2, "Press F1 to exit search")
 
             stdscr.refresh()
             key = stdscr.getch()
@@ -355,7 +361,7 @@ class pyconfig:
             if search_mode:
                 if key in (curses.KEY_BACKSPACE, 127):
                     search_query = search_query[:-1]
-                elif key == curses.KEY_F10:
+                elif key == self.exit_search_key:
                     stdscr.timeout(100)
                     if stdscr.getch() == -1:
                         search_mode, search_query = False, ""
@@ -369,7 +375,7 @@ class pyconfig:
                         current_row += 1
                 elif key in (curses.KEY_ENTER, 10, 13):
                     self.handle_enter(flat_options, current_row, stdscr, search_mode)
-                elif key == curses.KEY_F9:
+                elif key == self.force_enable_key:
                     self.handle_force_enable(flat_options, current_row, stdscr, search_mode)
             else:
                 if key in (curses.KEY_UP, curses.KEY_DOWN):
@@ -383,17 +389,17 @@ class pyconfig:
                             start_index += 1
                 elif key in (curses.KEY_ENTER, 10, 13):
                     self.handle_enter(flat_options, current_row, stdscr, search_mode)
-                elif key == ord('s'):
+                elif key == self.save_key:
                     self.save_config(stdscr)
-                elif key == ord('q'):
+                elif key == self.quite_key:
                     break
-                elif key == ord('c'):
+                elif key == self.collapse_key:
                     current_row = self.collapse_current_group(flat_options, current_row, search_mode)
-                elif key == curses.KEY_F9:
+                elif key == self.force_enable_key:
                     self.handle_force_enable(flat_options, current_row, stdscr, search_mode)
-                elif key == ord('/'):
+                elif key == self.search_key:
                     search_mode, search_query, current_row = True, "", 0
-                elif key == ord('h'):
+                elif key == self.help_key:
                     self.show_help(stdscr)
 
     def handle_force_enable(self, flat_options, row, stdscr, search_mode):

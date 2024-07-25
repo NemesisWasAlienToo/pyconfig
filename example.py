@@ -15,12 +15,13 @@ def init_function(config_instance):
 def custom_save(json_data, _):
     with open("output_defconfig", 'w') as f:
         for key, value in json_data.items():
-            if value != None and value != False:
+            if value == None or (isinstance(value, bool) and value == False):
+                f.write(f"# {key} is not set\n")
+            else:
                 if isinstance(value, str):
                     f.write(f"{key}=\"{value}\"\n")
                 else:
                     f.write(f"{key}={value if value != True else 'y'}\n")
-    print("Custom config saved")
 
 def main():
     config = pyconfig.pyconfig(config_files=["config.json"], init_func=init_function, save_func=custom_save, expanded=True, show_disabled=True)
