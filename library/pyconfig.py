@@ -562,10 +562,6 @@ class pyconfig:
                 if opt.option_type == 'group':
                     self.reset_dependent_options(option, opt.options)
 
-    # def set_option_value(self, option, value):
-    #     option.value = value
-    #     self.reset_dependent_options(option, self.options)
-
     def find_option(self, name, options = None):
         for opt in options:
             if opt.name == name:
