@@ -6,7 +6,7 @@ import re
 import textwrap
 
 class ConfigOption:
-    def __init__(self, name, option_type, default, external = None, data = None, dependencies=None, options=None, choices=None, expanded=False):
+    def __init__(self, name, option_type, default, external = None, data = None, description = "", dependencies=None, options=None, choices=None, expanded=False):
         self.name = name
         self.option_type = option_type
         self.value = default
@@ -14,6 +14,7 @@ class ConfigOption:
         # External options cannot be modified by the user
         self.external = external or False
         self.data = data
+        self.description = description
         self.dependencies = dependencies or []
         self.options = options or []
         self.choices = choices or []
@@ -26,6 +27,7 @@ class ConfigOption:
             'default': self.default,
             'external': self.external,
             'data': self.data,
+            'description': self.description,
             'dependencies': self.dependencies,
             'options': [opt.to_dict() for opt in self.options],
             'choices': self.choices
@@ -86,9 +88,10 @@ class pyconfig:
             if max_y > 2:
                 stdscr.addstr(max_y - 2, 2, "Press 'q' to return to the menu or UP/DOWN to scroll")
 
-            display_limit = max_y - 3
-            for idx, line in enumerate(help_text[start_index:start_index + display_limit]):
-                stdscr.addstr(idx + 1, 2, line)
+            if max_y >= 4:
+                display_limit = max_y - 3
+                for idx, line in enumerate(help_text[start_index:start_index + display_limit]):
+                    stdscr.addstr(idx + 1, 2, line)
             
             stdscr.refresh()
             key = stdscr.getch()
@@ -102,6 +105,27 @@ class pyconfig:
                 max_y, max_x = stdscr.getmaxyx()
                 display_limit = max_y - 2
             elif key == ord('q'):
+                break
+
+    def show_details(self, stdscr, options, row):
+        option, _ = options[row]
+        help_text = option.description if option.description else "No description available"
+
+        while True:
+            stdscr.clear()
+            stdscr.border(1)  # Draw the border
+            max_y, max_x = stdscr.getmaxyx()
+
+            if max_y >= 2:
+                stdscr.addstr(0, 2, f" {option.name} ")
+            if max_y >= 3:
+                stdscr.addstr(max_y - 2, 2, "Press any key to return to the menu")
+            if max_y >= 6:
+                stdscr.addstr(3, 2, help_text)
+
+            stdscr.refresh()
+            key = stdscr.getch()
+            if key != curses.KEY_RESIZE:
                 break
 
     def load_config(self):
@@ -125,6 +149,8 @@ class pyconfig:
                 name=option_data['name'],
                 option_type=option_data['type'],
                 default=option_data.get('default'),
+                description=option_data.get('description'),
+                data=option_data.get('data'),
                 dependencies=option_data.get('dependencies', []) + group_dependencies,
                 choices=option_data.get('choices', []),
                 expanded=self.expanded,
@@ -401,6 +427,8 @@ class pyconfig:
                     search_mode, search_query, current_row = True, "", 0
                 elif key == self.help_key:
                     self.show_help(stdscr)
+                elif key == ord('d'):
+                    self.show_details(stdscr, flat_options, current_row)
 
     def handle_force_enable(self, flat_options, row, stdscr, search_mode):
         if not flat_options:

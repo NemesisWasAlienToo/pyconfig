@@ -5,6 +5,7 @@
             "name": "ENABLE_FEATURE_A",
             "type": "bool",
             "default": true,
+            "description" : "Enables the feature A and feature B",
             "data": ["WIN32"]
         },
         {
