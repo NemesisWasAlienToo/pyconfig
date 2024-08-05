@@ -513,15 +513,14 @@ class pyconfig:
         original_choice = option.value
         while True:
             stdscr.clear()
-            stdscr.addstr(0, 0, f"Editing {option.name} (current choice: {option.choices[current_choice]}): ")
-            stdscr.addstr(1, 0, "Use UP/DOWN to change choice, ENTER to save, ESC or 'q' to cancel.")
-            stdscr.addstr(curses.LINES - 2, 2, " Press F10 to Cancel ")
+            stdscr.addstr(0, 2, f"Editing {option.name} (current choice: {option.choices[current_choice]}): ")
+            stdscr.addstr(curses.LINES - 2, 2, " Use UP/DOWN to change choice, ENTER to save or q to Cancel ")
             for idx, choice in enumerate(option.choices):
                 if idx == current_choice:
                     stdscr.attron(curses.color_pair(1))
                 if 3 + idx < stdscr.getmaxyx()[0]:
-                    stdscr.addstr(3 + idx, 2, " " * (len(choice) + 4))
-                    stdscr.addstr(3 + idx, 2, choice)
+                    stdscr.addstr(3 + idx, 4, " " * (len(choice) + 4))
+                    stdscr.addstr(3 + idx, 4, choice)
                 if idx == current_choice:
                     stdscr.attroff(curses.color_pair(1))
             stdscr.refresh()
@@ -533,7 +532,7 @@ class pyconfig:
             elif key in (curses.KEY_ENTER, 10, 13):
                 option.value = current_choice
                 break
-            elif key in (27, curses.KEY_F10):
+            elif key == ord('q'):
                 option.value = original_choice
                 break
 
