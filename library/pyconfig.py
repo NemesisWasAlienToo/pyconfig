@@ -200,6 +200,9 @@ class pyconfig:
 
     def is_option_available(self, option):
         return all(self.is_dependency_met(dep, self.options) for dep in option.dependencies)
+
+    def is_dependency_met(self, dependency_string, options):
+        return any(self.option_meets_dependency(opt, dependency_string) for opt in options)
     
     def option_meets_dependency(self, option, dependency_string):
         if option.option_type == 'group':
@@ -218,9 +221,6 @@ class pyconfig:
                    (option.option_type == 'int' and str(option.value) in values) or
                    (option.option_type == 'string' and option.value in values))
         return (option.name == dependency_string and option.value)
-
-    def is_dependency_met(self, dependency_string, options):
-        return any(self.option_meets_dependency(opt, dependency_string) for opt in options)
 
     def flatten_options(self, options, depth=0):
         flat_options = []
