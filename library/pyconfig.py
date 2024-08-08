@@ -18,7 +18,6 @@ class ConfigOption:
         self.options = options or []
         self.choices = choices or []
         self.expanded = expanded
-        self.action = action
 
     def to_dict(self):
         return {
@@ -31,7 +30,6 @@ class ConfigOption:
             'dependencies': self.dependencies,
             'options': [opt.to_dict() for opt in self.options],
             'choices': self.choices,
-            'action': self.action
         }
     
 class pyconfig:
