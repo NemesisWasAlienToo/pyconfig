@@ -6,12 +6,11 @@ import re
 import textwrap
 
 class ConfigOption:
-    def __init__(self, name, option_type, default, external = None, data = None, description = "", dependencies=None, options=None, choices=None, expanded=False):
+    def __init__(self, name, option_type, default = None, external = None, data = None, description = "", dependencies=None, options=None, choices=None, expanded=False, action = None):
         self.name = name
         self.option_type = option_type
         self.value = default
         self.default = default
-        # External options cannot be modified by the user
         self.external = external or False
         self.data = data
         self.description = description
@@ -19,6 +18,7 @@ class ConfigOption:
         self.options = options or []
         self.choices = choices or []
         self.expanded = expanded
+        self.action = action
 
     def to_dict(self):
         return {
@@ -30,12 +30,13 @@ class ConfigOption:
             'description': self.description,
             'dependencies': self.dependencies,
             'options': [opt.to_dict() for opt in self.options],
-            'choices': self.choices
+            'choices': self.choices,
+            'action': self.action
         }
     
 class pyconfig:
-    def __init__(self, config_files, output_file="output_config.json", save_func=None, init_func=None, expanded=False, show_disabled=False):
-        self.config_files = config_files
+    def __init__(self, schem_file, config_file = None, output_file="output_config.json", save_func=None, init_func=None, expanded=False, show_disabled=False):
+        self.schem_file = schem_file
         self.output_file = output_file
         self.save_func = save_func
         self.init_func = init_func
@@ -43,8 +44,8 @@ class pyconfig:
         self.expanded = expanded
         self.options = []
         self.config_name = ""
-        self.load_config()
-        self.apply_saved_config()
+        self.load_schem()
+        self.apply_config(config_file)
 
         self.save_key = ord('s')
         self.collapse_key = ord('c')
@@ -68,6 +69,9 @@ class pyconfig:
             "  h: Show this help page",
             "  F1: Exit search",
             "  F2: To forece enable (if disable item is visible)",
+            "  F3: Show description of item",
+            "  Ctrl+C: Exit input box",
+            "  Ctrl+C: Exit input box",
             "",
             "How it works:",
             "  - Use the arrow keys to navigate through the options.",
@@ -128,12 +132,12 @@ class pyconfig:
             if key != curses.KEY_RESIZE:
                 break
 
-    def load_config(self):
+    def load_schem(self):
         # Run the custom initialization function if provided
         if self.init_func:
             self.init_func(self)
 
-        for config_file in self.config_files:
+        for config_file in self.schem_file:
             with open(config_file, 'r') as f:
                 config_data = json.load(f)
                 self.config_name = config_data.get('name', 'Configuration')
@@ -163,7 +167,18 @@ class pyconfig:
                 option.value = option.choices.index(option.default)
             parent_list.append(option)
 
-    def apply_saved_config(self):
+    def apply_config(self, config_file = None):
+        if config_file:
+            if os.path.exists(config_file):
+                with open(config_file, 'r') as f:
+                    saved_config = json.load(f)
+                    self.apply_config_to_options(self.options, saved_config)
+                    print(f"File loaded: {config_file}")
+                    return
+                
+            print(f"Invalid config file: {config_file}")
+            exit()
+
         if os.path.exists(self.output_file):
             with open(self.output_file, 'r') as f:
                 saved_config = json.load(f)
@@ -323,6 +338,11 @@ class pyconfig:
                 value = str(option.value)
 
             display_text = f"{name}: {value}" if value != None else name
+
+            if option.option_type == 'action':
+                display_text = f"({name})"
+                if option.value is None:
+                    display_text += " [disabled]"
             if len(display_text) > max_x - 2:
                 display_text = display_text[:max_x - 5] + "..."
             if idx == current_row:
@@ -365,8 +385,8 @@ class pyconfig:
                 current_row = 0
             if current_row < start_index:
                 start_index = current_row
-            elif current_row >= start_index + (max_y - 6 if search_mode else max_y - 4):
-                start_index = current_row - (max_y - 7 if search_mode else max_y - 5)
+            elif current_row >= start_index + (max_y - 6 if search_mode else max_y - 5):
+                start_index = current_row - (max_y - 7 if search_mode else max_y - 6)
             
             self.display_options(stdscr, flat_options, start_index, current_row, search_mode)
 
@@ -427,7 +447,7 @@ class pyconfig:
                     search_mode, search_query, current_row = True, "", 0
                 elif key == self.help_key:
                     self.show_help(stdscr)
-                elif key == ord('d'):
+                elif key == curses.KEY_F3:
                     self.show_details(stdscr, flat_options, current_row)
 
     def handle_force_enable(self, flat_options, row, stdscr, search_mode):
@@ -448,7 +468,7 @@ class pyconfig:
         
         selected_option, _ = flat_options[row]
 
-        if selected_option.value == None and selected_option.option_type != 'group':
+        if selected_option.value == None and selected_option.option_type != 'group' and selected_option.option_type != 'action':
             return
         
         # External options cannot be modified by the user
@@ -464,6 +484,9 @@ class pyconfig:
             self.edit_option(stdscr, selected_option)
         elif selected_option.option_type == 'multiple_choice':
             self.edit_multiple_choice_option(stdscr, selected_option)
+        elif selected_option.option_type == 'action': 
+            if selected_option.value:
+                selected_option.value(stdscr)
 
         self.reset_dependent_options(selected_option, self.options)
 
@@ -479,7 +502,7 @@ class pyconfig:
         stdscr.addstr(1, 0, "Press ENTER to save, ESC or 'q' to cancel.")
         editwin = curses.newwin(3, max_x - 2, 2, 1)
         curses.textpad.rectangle(stdscr, 1, 0, 4, max_x - 1)
-        stdscr.addstr(max_y - 2, 2, " Press F10 to Cancel ")
+        stdscr.addstr(max_y - 2, 2, " Press Ctrl+C to Cancel ")
         stdscr.refresh()
         box = curses.textpad.Textbox(editwin, insert_mode=True)
 
@@ -570,6 +593,8 @@ class pyconfig:
     def flatten_options_key_value(self, options):
         config_data = {}
         for option in options:
+            if option.option_type == 'action':
+                continue
             if option.option_type == 'group':
                 nested_data = self.flatten_options_key_value(option.options)
                 if not self.is_option_available(option):

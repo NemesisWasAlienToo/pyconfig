@@ -1,0 +1,16 @@
+{
+    "OS": "UNIX",
+    "ENABLE_FEATURE_A": true,
+    "ENABLE_FEATURE_B": null,
+    "LOG_LEVEL": "DEBUG",
+    "INTERMEDIATE_OPTION": false,
+    "DEPENDS_ON_A_B": 0,
+    "INTERMEDIATE_OPTION_OFF": 0,
+    "FEATURE_A_LEVEL_2": 0,
+    "FEATURE_A_LEVEL_3": 0,
+    "FEATURE_A_LEVEL_4": 0,
+    "DOMAIN_ADDRESS": "localhost",
+    "Enable Sub Feature B": false,
+    "Enable Sub Feature C": false,
+    "EXTRA_FEATURE": false
+}

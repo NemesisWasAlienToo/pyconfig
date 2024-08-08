@@ -111,6 +111,6 @@
         }
     ],
     "include": [
-        "extra_config.json"
+        "extra_schem.json"
     ]
 }
