@@ -6,7 +6,16 @@ import re
 import textwrap
 
 class ConfigOption:
-    def __init__(self, name, option_type, default = None, external = None, data = None, description = "", dependencies=None, options=None, choices=None, expanded=False, action = None):
+    def __init__(self, name, option_type, default = None, external = None, data = None, description = "", dependencies = [], options = None, choices = None, expanded = False):
+        if bool(re.search(r'\s', name)):
+            raise ValueError(f"Option name cannot contain white space {name}")
+        
+        if option_type not in ["bool", "int", "string", "multiple_choice", "action", "group" ]:
+            raise ValueError(f"Invalid option type {option_type}")
+        
+        if option_type == "multiple_choice" and default not in choices:
+            raise ValueError(f"Invalid option type {option_type}")
+        
         self.name = name
         self.option_type = option_type
         self.value = default
@@ -14,7 +23,7 @@ class ConfigOption:
         self.external = external or False
         self.data = data
         self.description = description
-        self.dependencies = dependencies or []
+        self.dependencies = dependencies
         self.options = options or []
         self.choices = choices or []
         self.expanded = expanded

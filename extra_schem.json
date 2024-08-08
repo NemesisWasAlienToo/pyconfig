@@ -4,8 +4,7 @@
       {
         "name": "EXTRA_FEATURE",
         "type": "bool",
-        "default": false,
-        "dependencies": []
+        "default": false
       }
     ]
   }

@@ -85,23 +85,23 @@
             ]
         },
         {
-            "name": "Group 1",
+            "name": "GROUP_1",
             "type": "group",
             "dependencies": [
                 "ENABLE_FEATURE_A"
             ],
             "options": [
                 {
-                    "name": "Enable Sub Feature B",
+                    "name": "SUB_B",
                     "type": "bool",
                     "default": false
                 },
                 {
-                    "name": "Group 2",
+                    "name": "GROUP_2",
                     "type": "group",
                     "options": [
                         {
-                            "name": "Enable Sub Feature C",
+                            "name": "SUB_C",
                             "type": "bool",
                             "default": false
                         }
