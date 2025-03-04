@@ -1,5 +1,5 @@
-from library.pyconfig import ConfigOption
-import library.pyconfig as pyconfig
+from pyconfig import ConfigOption
+import pyconfig as pyconfig
 
 import curses
 import subprocess
@@ -9,45 +9,26 @@ import os
 import sys
 
 def execute_command(stdscr):
-    y = 0
-    max_y, _ = stdscr.getmaxyx()
-    
-    # Clear screen and set up scrolling
     stdscr.clear()
-    stdscr.scrollok(True)
+    curses.endwin()
+    print("\033[?1049l", end="")
 
-    # Command to be executed
+    # Command to run
     command = "ping google.com"  # Replace with your long-running command
 
     def read_output(process, stdscr, stop_event):
-        nonlocal y
+        curses.endwin()
         # Set stdout to non-blocking mode
         flags = fcntl.fcntl(process.stdout, fcntl.F_GETFL)
         fcntl.fcntl(process.stdout, fcntl.F_SETFL, flags | os.O_NONBLOCK)
         
         while not stop_event.is_set():
-            max_y, _ = stdscr.getmaxyx()  # Get the window's dimensions
-
             try:
                 output = process.stdout.readline()
                 if output == "" and process.poll() is not None:
                     break
                 if output:
-                    try:
-                        # Print the output above the bottom line
-                        stdscr.addstr(y, 0, output.strip())
-                        stdscr.clrtoeol()  # Clear the rest of the line
-                        y += 1
-                        if y >= max_y:  # Prevent scrolling from overwriting the prompt
-                            stdscr.scroll(1)
-                            y = max_y - 1  # Keep one line above the prompt for new output
-                    except curses.error:
-                        pass
-
-                # Always draw the prompt at the bottom
-                stdscr.addstr(max_y - 1, 0, "Press 'q' to terminate")
-                stdscr.clrtoeol()  # Ensure the line is cleared before writing
-                stdscr.refresh()
+                    print(f"{output}", end="\r")
             except IOError:
                 pass  # Ignore empty reads
 
@@ -72,24 +53,6 @@ def execute_command(stdscr):
     # Wait for the output thread to finish
     output_thread.join()
 
-# Example custom initialization function
-def init_function(config_instance):
-    config_instance.options.append(
-        ConfigOption(
-            name='OS',
-            option_type='string',
-            default="UNIX",
-            external=True
-    ))
-    config_instance.options.append(
-        ConfigOption(
-            name='compile',
-            option_type="action",
-            description="Compiles the code",
-            dependencies=["ENABLE_FEATURE_A"],
-            default=execute_command
-    ))
-
 def custom_save(json_data, _):
     with open("output_defconfig", 'w') as f:
         for key, value in json_data.items():
@@ -97,9 +60,9 @@ def custom_save(json_data, _):
                 f.write(f"# {key} is not set\n")
             else:
                 if isinstance(value, str):
-                    f.write(f"{key}=\"{value}\"\n")
+                    f.write(f"CONFIG_{key}=\"{value}\"\n")
                 else:
-                    f.write(f"{key}={value if value != True else 'y'}\n")
+                    f.write(f"CONFIG_{key}={value if value != True else 'y'}\n")
     with open("output_config.cmake", 'w') as f:
         for key, value in json_data.items():
             if value == None or (isinstance(value, bool) and value == False):
@@ -114,7 +77,26 @@ def main():
     load_file:str = None
     if len(sys.argv) > 1:
         load_file = sys.argv[1] if os.path.exists(sys.argv[1]) else None
-    config = pyconfig.pyconfig(schem_file=["schem.json"], config_file=load_file, init_func=init_function, save_func=custom_save, expanded=True, show_disabled=True)
+    
+    config = pyconfig.pyconfig(schem_file=["schem.json"], config_file=load_file, save_func=custom_save, expanded=True, show_disabled=True)
+
+    config.options.append(
+        ConfigOption(
+            name='OS',
+            option_type='string',
+            default="UNIX",
+            external=True
+    ))
+
+    config.options.append(
+        ConfigOption(
+            name='compile',
+            option_type="action",
+            description="Compiles the code",
+            dependencies="ENABLE_FEATURE_A",
+            default=execute_command
+    ))
+    
     config.run()
 
 if __name__ == "__main__":

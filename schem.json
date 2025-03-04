@@ -5,91 +5,63 @@
             "name": "ENABLE_FEATURE_A",
             "type": "bool",
             "default": true,
-            "description" : "Enables the feature A and feature B",
+            "description" : "Enables the feature A and feature B. Tesssssssssssssssssssssssssssssssssssting a long description.",
             "data": ["WIN32"]
         },
         {
             "name": "ENABLE_FEATURE_B",
             "type": "bool",
             "default": 0,
-            "dependencies": [
-                "OS=WIN32"
-            ]
+            "dependencies": "OS=='WIN32'"
         },
         {
             "name": "LOG_LEVEL",
             "type": "multiple_choice",
             "default": "DEBUG",
             "choices": ["DEBUG", "INFO", "WARN", "ERROR"],
-            "dependencies": [
-                "ENABLE_FEATURE_A"
-            ]
+            "dependencies": "ENABLE_FEATURE_A"
         },
         {
             "name": "INTERMEDIATE_OPTION",
             "type": "bool",
             "default": true,
-            "dependencies": [
-                "ENABLE_FEATURE_A"
-            ]
+            "dependencies": "ENABLE_FEATURE_A"
         },
         {
             "name": "DEPENDS_ON_A_B",
             "type": "int",
             "default": 0,
-            "dependencies": [
-                "ENABLE_FEATURE_A",
-                "LogLevel=DEBUG,INFO",
-                "!INTERMEDIATE_OPTION",
-                "DOMAIN_ADDRESS=localhost,hi"
-            ]
-        },
-        {
-            "name": "INTERMEDIATE_OPTION_OFF",
-            "type": "int",
-            "default": 0,
-            "dependencies": [
-                "!INTERMEDIATE_OPTION"
-            ]
+            "description" : "Enables the feature A and feature B. Tesssssssssssssssssssssssssssssssssssting a long description.",
+            "dependencies": "ENABLE_FEATURE_A && (LOG_LEVEL=='INFO' || LOG_LEVEL=='DEBUG') && !INTERMEDIATE_OPTION && (DOMAIN_ADDRESS=='localhost' || DOMAIN_ADDRESS=='hi')"
         },
         {
             "name": "FEATURE_A_LEVEL_2",
             "type": "int",
             "default": 0,
-            "dependencies": [
-                "ENABLE_FEATURE_A"
-            ]
+            "dependencies": "ENABLE_FEATURE_A"
         },
         {
             "name": "FEATURE_A_LEVEL_3",
             "type": "int",
             "default": 0,
-            "dependencies": [
-                "ENABLE_FEATURE_A"
-            ]
+            "dependencies": "ENABLE_FEATURE_A"
         },
         {
             "name": "FEATURE_A_LEVEL_4",
             "type": "int",
             "default": 0,
-            "dependencies": [
-                "ENABLE_FEATURE_A"
-            ]
+            "dependencies": "ENABLE_FEATURE_A"
         },
         {
             "name": "DOMAIN_ADDRESS",
             "type": "string",
             "default": "localhost",
-            "dependencies": [
-                "ENABLE_FEATURE_A"
-            ]
+            "dependencies": "ENABLE_FEATURE_A"
         },
         {
             "name": "GROUP_1",
             "type": "group",
-            "dependencies": [
-                "ENABLE_FEATURE_A"
-            ],
+            "dependencies": "ENABLE_FEATURE_A",
             "options": [
                 {
                     "name": "SUB_B",
