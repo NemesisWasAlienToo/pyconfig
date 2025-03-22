@@ -459,10 +459,10 @@ class pyconfig:
             content = [
                 "",
                 "Dependencies ",
-                option.dependencies,
+                option.dependencies if option.dependencies else "No dependencies",
                 "",
                 "Description ",
-                option.description
+                option.description if option.description else "No description available"
             ]
 
             if max_y > 2:
