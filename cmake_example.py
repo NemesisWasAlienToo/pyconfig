@@ -1,5 +1,5 @@
-from pyconfig import ConfigOption
-import pyconfig as pyconfig
+from pyconfix import ConfigOption
+import pyconfix as pyconfix
 
 import os
 import sys
@@ -15,7 +15,7 @@ def custom_save(json_data, _):
                 f.write(f"SET({key} \"{value}\")\n")
 
 def main():
-    config = pyconfig.pyconfig(schem_file=["schem.json"], save_func=custom_save)
+    config = pyconfix.pyconfix(schem_file=["schem.json"], save_func=custom_save)
     config.run()
 
 if __name__ == "__main__":

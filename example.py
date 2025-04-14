@@ -1,5 +1,5 @@
-from pyconfig import ConfigOption
-import pyconfig as pyconfig
+from pyconfix import ConfigOption
+import pyconfix as pyconfix
 
 import curses
 import subprocess
@@ -78,7 +78,7 @@ def main():
     if len(sys.argv) > 1:
         load_file = sys.argv[1] if os.path.exists(sys.argv[1]) else None
     
-    config = pyconfig.pyconfig(schem_file=["schem.json"], config_file=load_file, save_func=custom_save, expanded=True, show_disabled=True)
+    config = pyconfix.pyconfix(schem_file=["schem.json"], config_file=load_file, save_func=custom_save, expanded=True, show_disabled=True)
 
     config.options.append(
         ConfigOption(

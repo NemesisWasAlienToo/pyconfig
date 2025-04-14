@@ -1,5 +1,5 @@
 import re
-from pyconfig import (
+from pyconfix import (
     tokenize,
     shunting_yard,
     BooleanExpressionParser,
