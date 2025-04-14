@@ -305,15 +305,24 @@ class pyconfig:
                 break
 
     def load_schem(self):
-        for config_file in self.schem_file:
-            with open(config_file, 'r') as f:
+        def parse_file(filepath):
+            with open(filepath, 'r') as f:
                 config_data = json.load(f)
                 self.config_name = config_data.get('name', 'Configuration')
                 self.parse_options(config_data['options'], self.options)
+                
+                # Handle includes relative to current file
+                base_path = os.path.dirname(os.path.abspath(filepath))
                 for include_file in config_data.get('include', []):
-                    with open(include_file, 'r') as inc:
-                        extra_config_data = json.load(inc)
-                        self.parse_options(extra_config_data['options'], self.options)
+                    include_path = os.path.join(base_path, include_file)
+                    if not os.path.exists(include_path):
+                        print(f"File {filepath} includes a non-existing file: {include_path}")
+                        exit()
+                    parse_file(include_path)
+
+        # Parse each config file in the list
+        for config_file in self.schem_file:
+            parse_file(os.path.join(os.getcwd(), config_file))
 
     def parse_options(self, options_data, parent_list, group_dependencies=""):
         for option_data in options_data:
