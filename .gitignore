@@ -2,3 +2,6 @@ bk*
 .vs*
 __pycache__
 *output*
+dist
+*.egg-info
+build

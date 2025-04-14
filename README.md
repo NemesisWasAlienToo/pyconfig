@@ -1,7 +1,7 @@
 
-# pyconfig
+# pyconfix
 
-pyconfig is a Python-based configuration management tool with a text-based user interface built using curses. It allows you to manage complex configurations, including nested groups and dependencies between options. This library aims to provide a more user-friendly, configurable, and expandable alternative to menuconfig.
+pyconfix is a Python-based configuration management tool with a text-based user interface built using curses. It allows you to manage complex configurations, including nested groups and dependencies between options. This library aims to provide a more user-friendly, configurable, and expandable alternative to menuconfig.
 
 ## Features
 
@@ -15,15 +15,15 @@ pyconfig is a Python-based configuration management tool with a text-based user 
 Clone the repository and navigate to the project directory:
 
 ```bash
-git clone https://github.com/NemesisWasAlienToo/pyconfig.git
-cd pyconfig
+git clone https://github.com/NemesisWasAlienToo/pyconfix.git
+cd pyconfix
 ```
 
 Install the required dependencies (if any). This project uses standard libraries, so no additional dependencies are required.
 
 ## Usage
 
-Run the pyconfig by executing the `pyconfig.py` script:
+Run the pyconfix by executing the `pyconfix.py` script:
 
 ```bash
 python example.py
@@ -207,11 +207,11 @@ Represents a group of nested options.
 
 ## Example Code
 
-Here's an example of how to define a custom save function and run the pyconfig:
+Here's an example of how to define a custom save function and run the pyconfix:
 
 ```python
 import json
-import library.pyconfig as pyconfig
+import library.pyconfix as pyconfix
 
 def main():
     def custom_save(config_data):
@@ -219,7 +219,7 @@ def main():
             json.dump(config_data, f, indent=4)
         print("Custom config saved")
 
-    config = pyconfig.pyconfig(config_files=["config.json"], custom_save_func=custom_save)
+    config = pyconfix.pyconfix(config_files=["config.json"], custom_save_func=custom_save)
     config.run()
 
 if __name__ == "__main__":

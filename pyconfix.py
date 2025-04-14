@@ -1,3 +1,10 @@
+# MIT License
+# 
+# Copyright 2025 Nemesis
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 import json
 import curses
 import curses.textpad
@@ -216,7 +223,7 @@ class ConfigOption:
         }
 
 
-class pyconfig:
+class pyconfix:
     def __init__(self, schem_file, config_file=None, output_file="output_config.json",
                  save_func=None, expanded=False, show_disabled=False):
         self.schem_file = schem_file
@@ -305,15 +312,24 @@ class pyconfig:
                 break
 
     def load_schem(self):
-        for config_file in self.schem_file:
-            with open(config_file, 'r') as f:
+        def parse_file(filepath):
+            with open(filepath, 'r') as f:
                 config_data = json.load(f)
                 self.config_name = config_data.get('name', 'Configuration')
                 self.parse_options(config_data['options'], self.options)
+                
+                # Handle includes relative to current file
+                base_path = os.path.dirname(os.path.abspath(filepath))
                 for include_file in config_data.get('include', []):
-                    with open(include_file, 'r') as inc:
-                        extra_config_data = json.load(inc)
-                        self.parse_options(extra_config_data['options'], self.options)
+                    include_path = os.path.join(base_path, include_file)
+                    if not os.path.exists(include_path):
+                        print(f"File {filepath} includes a non-existing file: {include_path}")
+                        exit()
+                    parse_file(include_path)
+
+        # Parse each config file in the list
+        for config_file in self.schem_file:
+            parse_file(os.path.join(os.getcwd(), config_file))
 
     def parse_options(self, options_data, parent_list, group_dependencies=""):
         for option_data in options_data:
