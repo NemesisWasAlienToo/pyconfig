@@ -32,7 +32,7 @@
             "type": "int",
             "default": 0,
             "description" : "Enables the feature A and feature B. Tesssssssssssssssssssssssssssssssssssting a long description.",
-            "dependencies": "ENABLE_FEATURE_A && (LOG_LEVEL=='INFO' || LOG_LEVEL=='DEBUG') && !INTERMEDIATE_OPTION && (DOMAIN_ADDRESS=='localhost' || DOMAIN_ADDRESS=='hi')"
+            "dependencies": "ENABLE_FEATURE_A && (LOG_LEVEL==INFO || LOG_LEVEL==DEBUG) && !INTERMEDIATE_OPTION && (DOMAIN_ADDRESS=='localhost' || DOMAIN_ADDRESS=='hi')"
         },
         {
             "name": "FEATURE_A_LEVEL_2",

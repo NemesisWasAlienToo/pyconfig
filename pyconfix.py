@@ -58,6 +58,12 @@ def tokenize(expression: str):
         elif char in ('(', ')'):
             tokens.append(char)
             i += 1
+        elif char.isalpha():
+            start = i
+            i += 1
+            while i < n and (expression[i].isalnum() or expression[i] == '_'):
+                i += 1
+                tokens.append(expression[start:i])
         else:
             raise ValueError(f"Unexpected character: {char}")
     return tokens
@@ -397,19 +403,20 @@ class pyconfix:
             key_upper = key.upper()
             for opt in options_list:
                 if opt.option_type == "group":
-                    found, value = getter_function_impl(key, opt.options)
-                    if found:
-                        return True, value
+                    return getter_function_impl(key, opt.options)
                 # Compare names in a case-insensitive manner.
                 elif opt.name.upper() == key_upper:
                     if opt.option_type == "multiple_choice":
-                        return True, opt.choices[opt.value] if opt.value is not None else None
-                    return True, opt.value
-            return False, None
+                        return opt.choices[opt.value] if opt.value is not None else None
+                    return opt.value
+                elif opt.option_type == "multiple_choice":
+                    for choice in opt.choices:
+                        if choice.upper() == key_upper:
+                            return key
+            raise ValueError(f"Invalid token: {key}")
 
         def getter_function(key):
-            _, value = getter_function_impl(key)
-            return value
+            return getter_function_impl(key)
 
         if option.dependencies:
             parser = BooleanExpressionParser(getter=getter_function)
