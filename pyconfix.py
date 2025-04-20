@@ -58,6 +58,12 @@ def tokenize(expression: str):
         elif char in ('(', ')'):
             tokens.append(char)
             i += 1
+        elif char.isalpha():
+            start = i
+            i += 1
+            while i < n and (expression[i].isalnum() or expression[i] == '_'):
+                i += 1
+                tokens.append(expression[start:i])
         else:
             raise ValueError(f"Unexpected character: {char}")
     return tokens
@@ -192,8 +198,11 @@ class ConfigOption:
         if option_type not in ["bool", "int", "string", "multiple_choice", "action", "group"]:
             raise ValueError(f"Invalid option type {option_type}")
         
-        if option_type == "multiple_choice" and default not in (choices or []):
-            raise ValueError(f"Invalid default for multiple_choice option {name}")
+        if option_type == "multiple_choice":
+            if default not in (choices or []):
+                raise ValueError(f"Invalid default for multiple_choice option {name}")
+            if any(' ' in choice for choice in (choices or [])):
+                raise ValueError(f"Choice names cannot contain white space: {choice} in option {name}")
         
         self.name = name
         self.option_type = option_type
@@ -222,7 +231,6 @@ class ConfigOption:
             'choices': self.choices,
         }
 
-
 class pyconfix:
     def __init__(self, schem_file, config_file=None, output_file="output_config.json",
                  save_func=None, expanded=False, show_disabled=False):
@@ -247,25 +255,25 @@ class pyconfix:
         help_text = [
             "Help Page",
             "",
-            "Keybindings:",
-            "  Arrow Up/Down: Navigate",
-            "  Enter: Select/Toggle option",
-            "  s      : Save configuration",
-            "  q      : Quit",
-            "  c      : Collapse/Expand group",
-            "  /      : Search",
-            "  h      : Show this help page",
-            "  Ctrl+A : Exit search",
-            "  Ctrl+D : Show description of item",
-            "  Ctrl+C : Exit input box",
-            "",
-            "How it works:",
-            "  - Use the arrow keys to navigate through the options.",
-            "  - Press Enter to select or toggle an option.",
-            "  - Options that depend on other options will be shown or hidden based on their dependencies.",
-            "  - Use the search function to quickly find options by name.",
-            "  - Press 'c' to collapse or expand groups of options.",
-            ""
+             "Keybindings:",
+             "  Navigate              : Arrow Up/Down",
+             "  Select/Toggle option  : Enter",
+            f"  Save configuration    : {curses.keyname(self.save_key).decode()}",
+            f"  Quit                  : {curses.keyname(self.quite_key).decode()}",
+            f"  Collapse/Expand group : {curses.keyname(self.collapse_key).decode()}",
+            f"  Search                : {curses.keyname(self.search_key).decode()}",
+            f"  Show help page        : {curses.keyname(self.help_key).decode()}",
+            f"  Show description      : {curses.keyname(self.description_key).decode()}",
+            f"  Exit search           : {curses.keyname(self.abort_key).decode()}",
+            f"  Exit input box        : {curses.keyname(self.abort_key).decode()}",
+             "",
+             "How it works:",
+             "  - Use the arrow keys to navigate through the options.",
+             "  - Press Enter to select or toggle an option.",
+             "  - Options that depend on other options will be shown or hidden based on their dependencies.",
+             "  - Use the search function to quickly find options by name.",
+            f"  - Collapse/Expand groups : {curses.keyname(self.collapse_key).decode()}",
+             ""
         ]
 
         start_index = 0
@@ -289,7 +297,7 @@ class pyconfix:
             elif key == curses.KEY_RESIZE:
                 max_y, _ = stdscr.getmaxyx()
                 display_limit = max_y - 2
-            elif key == ord('q'):
+            elif key == ord('q') or key == self.abort_key:
                 break
 
     def show_details(self, stdscr, options, row):
@@ -395,19 +403,20 @@ class pyconfix:
             key_upper = key.upper()
             for opt in options_list:
                 if opt.option_type == "group":
-                    found, value = getter_function_impl(key, opt.options)
-                    if found:
-                        return True, value
+                    return getter_function_impl(key, opt.options)
                 # Compare names in a case-insensitive manner.
                 elif opt.name.upper() == key_upper:
                     if opt.option_type == "multiple_choice":
-                        return True, opt.choices[opt.value] if opt.value is not None else None
-                    return True, opt.value
-            return False, None
+                        return opt.choices[opt.value] if opt.value is not None else None
+                    return opt.value
+                elif opt.option_type == "multiple_choice":
+                    for choice in opt.choices:
+                        if choice.upper() == key_upper:
+                            return key
+            raise ValueError(f"Invalid token: {key}")
 
         def getter_function(key):
-            _, value = getter_function_impl(key)
-            return value
+            return getter_function_impl(key)
 
         if option.dependencies:
             parser = BooleanExpressionParser(getter=getter_function)
@@ -632,7 +641,7 @@ class pyconfix:
                 if max_y > 3:
                     stdscr.addstr(max_y - 3, 2, f"Search: {search_query}")
                 if max_y > 2:
-                    stdscr.addstr(max_y - 2, 2, "Press Ctrl+A to abort search")
+                    stdscr.addstr(max_y - 2, 2, f"Press {curses.keyname(self.abort_key).decode()} to abort search")
             stdscr.refresh()
             key = stdscr.getch()
             if key == curses.KEY_RESIZE:
@@ -671,7 +680,7 @@ class pyconfix:
                     self.handle_enter(flat_options, current_row, stdscr, search_mode)
                 elif key == self.save_key:
                     self.save_config(stdscr)
-                elif key == self.quite_key:
+                elif key == self.quite_key or key == self.abort_key:
                     break
                 elif key == self.collapse_key:
                     current_row = self.collapse_current_group(flat_options, current_row, search_mode)
@@ -741,7 +750,7 @@ class pyconfix:
             if max_y > 1:
                 stdscr.addstr(0, 2, f"Editing - {option.name} "[:max_x-4])
             if max_y > 3:
-                stdscr.addstr(max_y - 2, 2, "Press Ctrl+A to abort "[:max_x-4])
+                stdscr.addstr(max_y - 2, 2, f"Press {curses.keyname(self.abort_key).decode()} to abort "[:max_x-4])
             
             stdscr.refresh()
             editwin.move(0, 0)
@@ -787,12 +796,13 @@ class pyconfix:
 
     def edit_multiple_choice_option(self, stdscr, option):
         curses.curs_set(0)
+        max_y, max_x = stdscr.getmaxyx()
         current_choice = option.value if option.value is not None else 0
         original_choice = option.value
         while True:
             stdscr.clear()
             stdscr.addstr(0, 2, f"Editing - {option.name} "[:max_x-4])
-            stdscr.addstr(curses.LINES - 2, 2, "Press Ctrl+A to abort ")
+            stdscr.addstr(curses.LINES - 2, 2, f"Press {curses.keyname(self.abort_key).decode()} abort ")
             for idx, choice in enumerate(option.choices):
                 if idx == current_choice:
                     stdscr.attron(curses.color_pair(1))
