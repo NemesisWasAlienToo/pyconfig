@@ -94,6 +94,14 @@ def main():
 
     config.options.append(
         ConfigOption(
+            name='PYTHON_EVALUATED',
+            option_type='string',
+            default="UNIX",
+            evaluator=lambda x: config.get("ENABLE_FEATURE_A") == True
+    ))
+
+    config.options.append(
+        ConfigOption(
             name='compile',
             option_type="action",
             description="Compiles the code",

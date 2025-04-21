@@ -191,7 +191,7 @@ class BooleanExpressionParser:
 
 class ConfigOption:
     def __init__(self, name, option_type, default=None, external=None, data=None, description="",
-                 dependencies="", options=None, choices=None, expanded=False):
+                 dependencies="", options=None, choices=None, expanded=False, evaluator=None):
         if re.search(r'\s', name):
             raise ValueError(f"Option name cannot contain white space: {name}")
         
@@ -203,6 +203,21 @@ class ConfigOption:
                 raise ValueError(f"Invalid default for multiple_choice option {name}")
             if any(' ' in choice for choice in (choices or [])):
                 raise ValueError(f"Choice names cannot contain white space: {choice} in option {name}")
+
+        if option_type == "action" and not callable(default):
+            raise ValueError(f"Action option {name} must have a callable default value")
+
+        if option_type == "group" and not isinstance(options, list):
+            raise ValueError(f"Group option {name} must have a list of options")
+
+        if option_type == "multiple_choice" and not isinstance(choices, list):
+            raise ValueError(f"Multiple choice option {name} must have a list of choices")
+
+        if option_type == "external" and (dependencies or evaluator):
+            raise ValueError(f"External option {name} cannot have dependencies or evaluator")
+
+        if dependencies and evaluator:
+            raise ValueError(f"Option {name} cannot have both dependencies and evaluator")
         
         self.name = name
         self.option_type = option_type
@@ -215,8 +230,12 @@ class ConfigOption:
         self.options = options or []
         self.choices = choices or []
         self.expanded = expanded
-        # Precompute the postfix representation of the dependency string (if any)
-        self.postfix_dependencies = shunting_yard(tokenize(self.dependencies)) if self.dependencies else []
+        if evaluator is not None:
+            self.evaluator = evaluator
+        else:
+            # Precompute the postfix representation of the dependency string (if any)
+            self.postfix_dependencies = shunting_yard(tokenize(self.dependencies)) if self.dependencies else []
+            self.evaluator = None
 
     def to_dict(self):
         return {
@@ -399,7 +418,7 @@ class pyconfix:
                 option.value = option.default if option.option_type != 'multiple_choice' else option.choices.index(option.default)
 
     def is_option_available(self, option):
-        def getter_function_impl(key, options_list=self.options):
+        def getter_function_impl(key, options_list):
             key_upper = key.upper()
             for opt in options_list:
                 if opt.option_type == "group":
@@ -409,6 +428,7 @@ class pyconfix:
                     if opt.option_type == "multiple_choice":
                         return opt.choices[opt.value] if opt.value is not None else None
                     return opt.value
+                # If an enum value being parsed instead of a key name 
                 elif opt.option_type == "multiple_choice":
                     for choice in opt.choices:
                         if choice.upper() == key_upper:
@@ -416,12 +436,28 @@ class pyconfix:
             raise ValueError(f"Invalid token: {key}")
 
         def getter_function(key):
-            return getter_function_impl(key)
+            return getter_function_impl(key, self.options)
 
+        if option.evaluator:
+            return option.evaluator(self.options)
         if option.dependencies:
             parser = BooleanExpressionParser(getter=getter_function)
             return parser.evaluate_postfix(option.postfix_dependencies)
         return True
+
+    def get(self, key):
+        def get_impl(key, options_list=self.options):
+            key_upper = key.upper()
+            for opt in options_list:
+                if opt.option_type == "group":
+                    return get_impl(key, opt.options)
+                # Compare names in a case-insensitive manner.
+                elif opt.name.upper() == key_upper:
+                    if opt.option_type == "multiple_choice":
+                        return opt.choices[opt.value] if opt.value is not None else None
+                    return opt.value
+            raise ValueError(f"Invalid token: {key}")
+        return get_impl(key)
 
     def is_dependency_met(self, dependency_string, options):
         return any(self.option_meets_dependency(opt, dependency_string) for opt in options)
