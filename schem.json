@@ -35,19 +35,19 @@
             "dependencies": "ENABLE_FEATURE_A && (LOG_LEVEL==INFO || LOG_LEVEL==DEBUG) && !INTERMEDIATE_OPTION && (DOMAIN_ADDRESS=='localhost' || DOMAIN_ADDRESS=='hi')"
         },
         {
-            "name": "FEATURE_A_LEVEL_2",
+            "name": "HEAP_SIZE",
             "type": "int",
-            "default": 0,
+            "default": 10,
             "dependencies": "ENABLE_FEATURE_A"
         },
         {
-            "name": "FEATURE_A_LEVEL_3",
+            "name": "STACK_SIZE",
             "type": "int",
-            "default": 0,
+            "default": 10,
             "dependencies": "ENABLE_FEATURE_A"
         },
         {
-            "name": "FEATURE_A_LEVEL_4",
+            "name": "MEMORY_SIZE",
             "type": "int",
             "default": 0,
             "dependencies": "ENABLE_FEATURE_A"
@@ -61,7 +61,7 @@
         {
             "name": "GROUP_1",
             "type": "group",
-            "dependencies": "ENABLE_FEATURE_A",
+            "dependencies": "ENABLE_FEATURE_A && ((STACK_SIZE + HEAP_SIZE) <= MEMORY_SIZE)",
             "options": [
                 {
                     "name": "SUB_B",

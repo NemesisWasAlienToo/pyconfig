@@ -47,9 +47,9 @@ def tokenize(expression: str):
                 i += 1
             i += 1  # include closing quote
             tokens.append(expression[start:i])
-        elif char in ('&', '|', '!', '=', '>', '<'):
-            # Check for two-character operators.
-            if i + 1 < n and expression[i:i+2] in ('&&', '||', '==', '!=', '>=', '<='):
+        elif char in ('&', '|', '!', '=', '>', '<', '+', '-', '*', '/', '^', '%'):
+            # Check for two-character operators
+            if i + 1 < n and expression[i:i+2] in ('&&', '||', '==', '!=', '>=', '<=', '>>', '<<'):
                 tokens.append(expression[i:i+2])
                 i += 2
             else:
@@ -72,20 +72,27 @@ def shunting_yard(tokens, precedence=None):
     """
     Converts a list of tokens (in infix notation) to a postfix list.
     Precedence mapping:
-      !   : 4
-      ==, !=, >, <, >=, <= : 3
-      &&  : 2
-      ||  : 1
-    This makes equality operators bind tighter than && and ||.
+      !   : 7
+      **  : 6 (power)
+      *, /, % : 5
+      +, - : 4
+      >>, <<, & : 3
+      ==, !=, >, <, >=, <= : 2
+      &&  : 1
+      ||, | : 0
     """
     if precedence is None:
         precedence = {
-            '!': 4,
-            '==': 3, '!=': 3, '>': 3, '<': 3, '>=': 3, '<=': 3,
-            '&&': 2,
-            '||': 1,
+            '!': 7,
+            '**': 6,
+            '*': 5, '/': 5, '%': 5,
+            '+': 4, '-': 4,
+            '>>': 3, '<<': 3, '&': 3, '^': 3,
+            '==': 2, '!=': 2, '>': 2, '<': 2, '>=': 2, '<=': 2,
+            '&&': 1,
+            '||': 0, '|': 0,
         }
-    right_associative = {'!'}
+    right_associative = {'!', '**'}
     output = []
     operators = []
     for token in tokens:
@@ -154,7 +161,7 @@ def evaluate_postfix_expr(tokens, operand_func, eval_operator):
 
 class BooleanExpressionParser:
     """
-    Evaluates boolean expressions using tokenizing,
+    Evaluates boolean and arithmetic expressions using tokenizing,
     postfix conversion, and evaluation routines.
     """
     def __init__(self, getter, enumerator=None) -> None:
@@ -180,6 +187,28 @@ class BooleanExpressionParser:
             return left >= right
         elif op == '<=':
             return left <= right
+        elif op == '+':
+            return left + right
+        elif op == '-':
+            return left - right
+        elif op == '*':
+            return left * right
+        elif op == '/':
+            return left / right
+        elif op == '**':
+            return left ** right
+        elif op == '%':
+            return left % right
+        elif op == '&':
+            return left & right
+        elif op == '|':
+            return left | right
+        elif op == '^':
+            return left ^ right
+        elif op == '>>':
+            return left >> right
+        elif op == '<<':
+            return left << right
         else:
             raise ValueError(f"Unknown operator: {op}")
 
@@ -425,10 +454,12 @@ class pyconfix:
                     return getter_function_impl(key, opt.options)
                 # Compare names in a case-insensitive manner.
                 elif opt.name.upper() == key_upper:
+                    default_value = opt.default
                     if opt.option_type == "multiple_choice":
-                        return opt.choices[opt.value] if opt.value is not None else None
-                    return opt.value
-                # If an enum value being parsed instead of a key name 
+                        default_value = opt.choices.index(opt.default)
+                        return opt.choices[opt.value] if opt.value is not None else default_value
+                    return opt.value if opt.value is not None else default_value
+                # If an enum value being parsed as key instead of a key name
                 elif opt.option_type == "multiple_choice":
                     for choice in opt.choices:
                         if choice.upper() == key_upper:

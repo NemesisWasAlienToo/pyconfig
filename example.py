@@ -13,7 +13,7 @@ def execute_command(stdscr):
     print("\033[?1049l", end="")
 
     # Command to run
-    command = "ping google.com"  # Replace with your long-running command
+    command = "while true; do echo 'hi'; sleep 1; done"
 
     def read_output(process, stdscr, stop_event):
         curses.endwin()
@@ -56,21 +56,11 @@ def custom_save(json_data, _):
     with open("output_defconfig", 'w') as f:
         for key, value in json_data.items():
             if value == None or (isinstance(value, bool) and value == False):
-                f.write(f"# {key} is not set\n")
-            else:
-                if isinstance(value, str):
-                    f.write(f"CONFIG_{key}=\"{value}\"\n")
-                else:
-                    f.write(f"CONFIG_{key}={value if value != True else 'y'}\n")
-    with open("output_config.cmake", 'w') as f:
-        for key, value in json_data.items():
-            if value == None or (isinstance(value, bool) and value == False):
                 continue
-
             if isinstance(value, str):
-                f.write(f"SET({key} \"{value}\")\n")
+                f.write(f"CONFIG_{key}=\"{value}\"\n")
             else:
-                f.write(f"SET({key} {value if value != True else 'True'})\n")
+                f.write(f"CONFIG_{key}={value if value != True else 'y'}\n")
 
 def main():
     load_file:str = None
@@ -84,30 +74,27 @@ def main():
     
     config = pyconfix(schem_file=["schem.json"], config_file=load_file, save_func=custom_save, expanded=True, show_disabled=True)
 
-    config.options.append(
+    config.options.extend([
         ConfigOption(
             name='OS',
             option_type='string',
             default="UNIX",
             external=True
-    ))
-
-    config.options.append(
+        ),
         ConfigOption(
-            name='PYTHON_EVALUATED',
-            option_type='string',
-            default="UNIX",
-            evaluator=lambda x: config.get("ENABLE_FEATURE_A") == True
-    ))
-
-    config.options.append(
+                name='PYTHON_EVALUATED',
+                option_type='string',
+                default="UNIX",
+                evaluator=lambda x: config.get("ENABLE_FEATURE_A") == True
+        ),
         ConfigOption(
-            name='compile',
-            option_type="action",
-            description="Compiles the code",
-            dependencies="ENABLE_FEATURE_A",
-            default=execute_command
-    ))
+                name='compile',
+                option_type="action",
+                description="Compiles the code",
+                dependencies="ENABLE_FEATURE_A",
+                default=execute_command
+        )
+    ])
     
     config.run(graphical=graphical_mode)
 
