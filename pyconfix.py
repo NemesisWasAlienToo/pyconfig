@@ -603,9 +603,13 @@ class pyconfix:
             if idx == current_row:
                 stdscr.attroff(curses.color_pair(1))
 
-    def run(self):
+    def run(self, graphical=True):
         self.load_schem()
         self.apply_config(self.config_file)
+        if not graphical:
+            self.write_config()
+            print("Configuration dumped successfully.")
+            return
         curses.wrapper(self.menu_loop)
 
     def menu_loop(self, stdscr):
@@ -839,12 +843,15 @@ class pyconfix:
                 return idx
         return current_row
 
-    def save_config(self, stdscr):
+    def write_config(self):
         config_data = self.flatten_options_key_value(self.options)
         with open(self.output_file, 'w') as f:
             json.dump(config_data, f, indent=4)
         if self.save_func:
             self.save_func(config_data, self.options)
+
+    def save_config(self, stdscr):
+        self.write_config()
         stdscr.clear()
         stdscr.addstr(0, 0, "Configuration saved successfully.")
         stdscr.addstr(1, 0, "Press any key to continue.")
@@ -862,7 +869,8 @@ class pyconfix:
                     nested_data = {nested_key: None for nested_key in nested_data}
                 config_data.update(nested_data)
             else:
-                value_to_save = None if option.value is None else (
+                default_value = option.default if option.option_type != 'multiple_choice' else option.choices.index(option.default)
+                value_to_save = default_value if option.value is None else (
                     option.choices[option.value] if option.option_type == 'multiple_choice'
                     else option.value)
                 config_data[option.name] = None if not self.is_option_available(option) else value_to_save

@@ -1,5 +1,4 @@
-from pyconfix import ConfigOption
-import pyconfix as pyconfix
+from pyconfix import pyconfix, ConfigOption
 
 import curses
 import subprocess
@@ -75,10 +74,15 @@ def custom_save(json_data, _):
 
 def main():
     load_file:str = None
+    graphical_mode = True
     if len(sys.argv) > 1:
-        load_file = sys.argv[1] if os.path.exists(sys.argv[1]) else None
+        if sys.argv[1] == "-d" and len(sys.argv) > 2:
+            graphical_mode = False
+            load_file = sys.argv[2] if os.path.exists(sys.argv[2]) else None
+        else:
+            load_file = sys.argv[1] if os.path.exists(sys.argv[1]) else None
     
-    config = pyconfix.pyconfix(schem_file=["schem.json"], config_file=load_file, save_func=custom_save, expanded=True, show_disabled=True)
+    config = pyconfix(schem_file=["schem.json"], config_file=load_file, save_func=custom_save, expanded=True, show_disabled=True)
 
     config.options.append(
         ConfigOption(
@@ -97,7 +101,7 @@ def main():
             default=execute_command
     ))
     
-    config.run()
+    config.run(graphical=graphical_mode)
 
 if __name__ == "__main__":
     main()
