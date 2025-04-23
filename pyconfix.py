@@ -451,7 +451,9 @@ class pyconfix:
             key_upper = key.upper()
             for opt in options_list:
                 if opt.option_type == "group":
-                    return getter_function_impl(key, opt.options)
+                    value = getter_function_impl(key, opt.options)
+                    if value is not None:
+                        return value
                 # Compare names in a case-insensitive manner.
                 elif opt.name.upper() == key_upper:
                     default_value = opt.default
@@ -464,10 +466,13 @@ class pyconfix:
                     for choice in opt.choices:
                         if choice.upper() == key_upper:
                             return key
-            raise ValueError(f"Invalid token: {key}")
+            return None
 
         def getter_function(key):
-            return getter_function_impl(key, self.options)
+            value = getter_function_impl(key, self.options)
+            if value is None:
+                raise ValueError(f"Invalid token: {key}")
+            return value
 
         if option.evaluator:
             return option.evaluator(self.options)
@@ -481,14 +486,19 @@ class pyconfix:
             key_upper = key.upper()
             for opt in options_list:
                 if opt.option_type == "group":
-                    return get_impl(key, opt.options)
+                    value = get_impl(key, opt.options)
+                    if value is not None:
+                        return value
                 # Compare names in a case-insensitive manner.
                 elif opt.name.upper() == key_upper:
                     if opt.option_type == "multiple_choice":
                         return opt.choices[opt.value] if opt.value is not None else None
                     return opt.value
+            return None
+        value = get_impl(key)
+        if value is None:
             raise ValueError(f"Invalid token: {key}")
-        return get_impl(key)
+        return value
 
     def is_dependency_met(self, dependency_string, options):
         return any(self.option_meets_dependency(opt, dependency_string) for opt in options)
