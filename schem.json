@@ -56,7 +56,7 @@
             "name": "DOMAIN_ADDRESS",
             "type": "string",
             "default": "localhost",
-            "dependencies": "ENABLE_FEATURE_A"
+            "dependencies": "ENABLE_FEATURE_A && ((MEMORY_SIZE & 0xF) == 0xE)"
         },
         {
             "name": "GROUP_1",

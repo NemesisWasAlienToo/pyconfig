@@ -23,8 +23,22 @@ def tokenize(expression: str):
         if char.isspace():
             i += 1
             continue
+        # Handle hexadecimal (0x) and binary (0b) prefixes
+        if char == '0' and i + 1 < n and expression[i+1].lower() in ('x', 'b'):
+            prefix = expression[i:i+2].lower()
+            i += 2
+            start = i - 2
+            # Parse hex digits
+            if prefix == '0x':
+                while i < n and (expression[i].isdigit() or expression[i].lower() in 'abcdef'):
+                    i += 1
+            # Parse binary digits
+            elif prefix == '0b':
+                while i < n and expression[i] in '01':
+                    i += 1
+            tokens.append(expression[start:i])
         # Numeric literal: digit or dot (with digit following)
-        if char.isdigit() or (char == '.' and i + 1 < n and expression[i+1].isdigit()):
+        elif char.isdigit() or (char == '.' and i + 1 < n and expression[i+1].isdigit()):
             start = i
             dot_count = 0
             if char == '.':
@@ -132,12 +146,15 @@ def evaluate_postfix_expr(tokens, operand_func, eval_operator):
     """
     stack = []
     for token in tokens:
-        # Convert numeric literals.
         if token.replace('.', '', 1).isdigit():
             if '.' in token:
                 stack.append(float(token))
             else:
                 stack.append(int(token))
+        elif token.lower().startswith('0x'):
+            stack.append(int(token, 16))
+        elif token.lower().startswith('0b'):
+            stack.append(int(token, 2))
         elif token.isalnum() or (token.startswith("'") and token.endswith("'")) or '_' in token:
             if token.startswith("'") and token.endswith("'"):
                 stack.append(token[1:-1])
@@ -867,7 +884,15 @@ class pyconfix:
         try:
             new_value = content.replace('\n', '').strip()
             if option.option_type == 'int':
-                option.value = int(new_value)
+                # Handle hex format
+                if new_value.lower().startswith('0x'):
+                    option.value = int(new_value, 16)
+                # Handle binary format
+                elif new_value.lower().startswith('0b'):
+                    option.value = int(new_value, 2)
+                # Handle decimal format
+                else:
+                    option.value = int(new_value)
             elif option.option_type == 'string':
                 option.value = new_value
         except ValueError:
