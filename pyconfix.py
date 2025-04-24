@@ -23,8 +23,22 @@ def tokenize(expression: str):
         if char.isspace():
             i += 1
             continue
+        # Handle hexadecimal (0x) and binary (0b) prefixes
+        if char == '0' and i + 1 < n and expression[i+1].lower() in ('x', 'b'):
+            prefix = expression[i:i+2].lower()
+            i += 2
+            start = i - 2
+            # Parse hex digits
+            if prefix == '0x':
+                while i < n and (expression[i].isdigit() or expression[i].lower() in 'abcdef'):
+                    i += 1
+            # Parse binary digits
+            elif prefix == '0b':
+                while i < n and expression[i] in '01':
+                    i += 1
+            tokens.append(expression[start:i])
         # Numeric literal: digit or dot (with digit following)
-        if char.isdigit() or (char == '.' and i + 1 < n and expression[i+1].isdigit()):
+        elif char.isdigit() or (char == '.' and i + 1 < n and expression[i+1].isdigit()):
             start = i
             dot_count = 0
             if char == '.':
@@ -47,9 +61,9 @@ def tokenize(expression: str):
                 i += 1
             i += 1  # include closing quote
             tokens.append(expression[start:i])
-        elif char in ('&', '|', '!', '=', '>', '<'):
-            # Check for two-character operators.
-            if i + 1 < n and expression[i:i+2] in ('&&', '||', '==', '!=', '>=', '<='):
+        elif char in ('&', '|', '!', '=', '>', '<', '+', '-', '*', '/', '^', '%'):
+            # Check for two-character operators
+            if i + 1 < n and expression[i:i+2] in ('&&', '||', '==', '!=', '>=', '<=', '>>', '<<'):
                 tokens.append(expression[i:i+2])
                 i += 2
             else:
@@ -72,20 +86,27 @@ def shunting_yard(tokens, precedence=None):
     """
     Converts a list of tokens (in infix notation) to a postfix list.
     Precedence mapping:
-      !   : 4
-      ==, !=, >, <, >=, <= : 3
-      &&  : 2
-      ||  : 1
-    This makes equality operators bind tighter than && and ||.
+      !   : 7
+      **  : 6 (power)
+      *, /, % : 5
+      +, - : 4
+      >>, <<, & : 3
+      ==, !=, >, <, >=, <= : 2
+      &&  : 1
+      ||, | : 0
     """
     if precedence is None:
         precedence = {
-            '!': 4,
-            '==': 3, '!=': 3, '>': 3, '<': 3, '>=': 3, '<=': 3,
-            '&&': 2,
-            '||': 1,
+            '!': 7,
+            '**': 6,
+            '*': 5, '/': 5, '%': 5,
+            '+': 4, '-': 4,
+            '>>': 3, '<<': 3, '&': 3, '^': 3,
+            '==': 2, '!=': 2, '>': 2, '<': 2, '>=': 2, '<=': 2,
+            '&&': 1,
+            '||': 0, '|': 0,
         }
-    right_associative = {'!'}
+    right_associative = {'!', '**'}
     output = []
     operators = []
     for token in tokens:
@@ -125,12 +146,15 @@ def evaluate_postfix_expr(tokens, operand_func, eval_operator):
     """
     stack = []
     for token in tokens:
-        # Convert numeric literals.
         if token.replace('.', '', 1).isdigit():
             if '.' in token:
                 stack.append(float(token))
             else:
                 stack.append(int(token))
+        elif token.lower().startswith('0x'):
+            stack.append(int(token, 16))
+        elif token.lower().startswith('0b'):
+            stack.append(int(token, 2))
         elif token.isalnum() or (token.startswith("'") and token.endswith("'")) or '_' in token:
             if token.startswith("'") and token.endswith("'"):
                 stack.append(token[1:-1])
@@ -154,7 +178,7 @@ def evaluate_postfix_expr(tokens, operand_func, eval_operator):
 
 class BooleanExpressionParser:
     """
-    Evaluates boolean expressions using tokenizing,
+    Evaluates boolean and arithmetic expressions using tokenizing,
     postfix conversion, and evaluation routines.
     """
     def __init__(self, getter, enumerator=None) -> None:
@@ -180,6 +204,28 @@ class BooleanExpressionParser:
             return left >= right
         elif op == '<=':
             return left <= right
+        elif op == '+':
+            return left + right
+        elif op == '-':
+            return left - right
+        elif op == '*':
+            return left * right
+        elif op == '/':
+            return left / right
+        elif op == '**':
+            return left ** right
+        elif op == '%':
+            return left % right
+        elif op == '&':
+            return left & right
+        elif op == '|':
+            return left | right
+        elif op == '^':
+            return left ^ right
+        elif op == '>>':
+            return left >> right
+        elif op == '<<':
+            return left << right
         else:
             raise ValueError(f"Unknown operator: {op}")
 
@@ -191,7 +237,7 @@ class BooleanExpressionParser:
 
 class ConfigOption:
     def __init__(self, name, option_type, default=None, external=None, data=None, description="",
-                 dependencies="", options=None, choices=None, expanded=False):
+                 dependencies="", options=None, choices=None, expanded=False, evaluator=None):
         if re.search(r'\s', name):
             raise ValueError(f"Option name cannot contain white space: {name}")
         
@@ -203,6 +249,21 @@ class ConfigOption:
                 raise ValueError(f"Invalid default for multiple_choice option {name}")
             if any(' ' in choice for choice in (choices or [])):
                 raise ValueError(f"Choice names cannot contain white space: {choice} in option {name}")
+
+        if option_type == "action" and not callable(default):
+            raise ValueError(f"Action option {name} must have a callable default value")
+
+        if option_type == "group" and not isinstance(options, list):
+            raise ValueError(f"Group option {name} must have a list of options")
+
+        if option_type == "multiple_choice" and not isinstance(choices, list):
+            raise ValueError(f"Multiple choice option {name} must have a list of choices")
+
+        if option_type == "external" and (dependencies or evaluator):
+            raise ValueError(f"External option {name} cannot have dependencies or evaluator")
+
+        if dependencies and evaluator:
+            raise ValueError(f"Option {name} cannot have both dependencies and evaluator")
         
         self.name = name
         self.option_type = option_type
@@ -215,8 +276,12 @@ class ConfigOption:
         self.options = options or []
         self.choices = choices or []
         self.expanded = expanded
-        # Precompute the postfix representation of the dependency string (if any)
-        self.postfix_dependencies = shunting_yard(tokenize(self.dependencies)) if self.dependencies else []
+        if evaluator is not None:
+            self.evaluator = evaluator
+        else:
+            # Precompute the postfix representation of the dependency string (if any)
+            self.postfix_dependencies = shunting_yard(tokenize(self.dependencies)) if self.dependencies else []
+            self.evaluator = None
 
     def to_dict(self):
         return {
@@ -399,29 +464,58 @@ class pyconfix:
                 option.value = option.default if option.option_type != 'multiple_choice' else option.choices.index(option.default)
 
     def is_option_available(self, option):
-        def getter_function_impl(key, options_list=self.options):
+        def getter_function_impl(key, options_list):
             key_upper = key.upper()
             for opt in options_list:
                 if opt.option_type == "group":
-                    return getter_function_impl(key, opt.options)
+                    value = getter_function_impl(key, opt.options)
+                    if value is not None:
+                        return value
+                # Compare names in a case-insensitive manner.
+                elif opt.name.upper() == key_upper:
+                    default_value = opt.default
+                    if opt.option_type == "multiple_choice":
+                        default_value = opt.choices.index(opt.default)
+                        return opt.choices[opt.value] if opt.value is not None else default_value
+                    return opt.value if opt.value is not None else default_value
+                # If an enum value being parsed as key instead of a key name
+                elif opt.option_type == "multiple_choice":
+                    for choice in opt.choices:
+                        if choice.upper() == key_upper:
+                            return key
+            return None
+
+        def getter_function(key):
+            value = getter_function_impl(key, self.options)
+            if value is None:
+                raise ValueError(f"Invalid token: {key}")
+            return value
+
+        if option.evaluator:
+            return option.evaluator(self.options)
+        if option.dependencies:
+            parser = BooleanExpressionParser(getter=getter_function)
+            return parser.evaluate_postfix(option.postfix_dependencies)
+        return True
+
+    def get(self, key):
+        def get_impl(key, options_list=self.options):
+            key_upper = key.upper()
+            for opt in options_list:
+                if opt.option_type == "group":
+                    value = get_impl(key, opt.options)
+                    if value is not None:
+                        return value
                 # Compare names in a case-insensitive manner.
                 elif opt.name.upper() == key_upper:
                     if opt.option_type == "multiple_choice":
                         return opt.choices[opt.value] if opt.value is not None else None
                     return opt.value
-                elif opt.option_type == "multiple_choice":
-                    for choice in opt.choices:
-                        if choice.upper() == key_upper:
-                            return key
+            return None
+        value = get_impl(key)
+        if value is None:
             raise ValueError(f"Invalid token: {key}")
-
-        def getter_function(key):
-            return getter_function_impl(key)
-
-        if option.dependencies:
-            parser = BooleanExpressionParser(getter=getter_function)
-            return parser.evaluate_postfix(option.postfix_dependencies)
-        return True
+        return value
 
     def is_dependency_met(self, dependency_string, options):
         return any(self.option_meets_dependency(opt, dependency_string) for opt in options)
@@ -603,9 +697,13 @@ class pyconfix:
             if idx == current_row:
                 stdscr.attroff(curses.color_pair(1))
 
-    def run(self):
+    def run(self, graphical=True):
         self.load_schem()
         self.apply_config(self.config_file)
+        if not graphical:
+            self.write_config()
+            print("Configuration dumped successfully.")
+            return
         curses.wrapper(self.menu_loop)
 
     def menu_loop(self, stdscr):
@@ -786,7 +884,15 @@ class pyconfix:
         try:
             new_value = content.replace('\n', '').strip()
             if option.option_type == 'int':
-                option.value = int(new_value)
+                # Handle hex format
+                if new_value.lower().startswith('0x'):
+                    option.value = int(new_value, 16)
+                # Handle binary format
+                elif new_value.lower().startswith('0b'):
+                    option.value = int(new_value, 2)
+                # Handle decimal format
+                else:
+                    option.value = int(new_value)
             elif option.option_type == 'string':
                 option.value = new_value
         except ValueError:
@@ -839,12 +945,15 @@ class pyconfix:
                 return idx
         return current_row
 
-    def save_config(self, stdscr):
+    def write_config(self):
         config_data = self.flatten_options_key_value(self.options)
         with open(self.output_file, 'w') as f:
             json.dump(config_data, f, indent=4)
         if self.save_func:
             self.save_func(config_data, self.options)
+
+    def save_config(self, stdscr):
+        self.write_config()
         stdscr.clear()
         stdscr.addstr(0, 0, "Configuration saved successfully.")
         stdscr.addstr(1, 0, "Press any key to continue.")
@@ -862,7 +971,8 @@ class pyconfix:
                     nested_data = {nested_key: None for nested_key in nested_data}
                 config_data.update(nested_data)
             else:
-                value_to_save = None if option.value is None else (
+                default_value = option.default if option.option_type != 'multiple_choice' else option.choices.index(option.default)
+                value_to_save = default_value if option.value is None else (
                     option.choices[option.value] if option.option_type == 'multiple_choice'
                     else option.value)
                 config_data[option.name] = None if not self.is_option_available(option) else value_to_save
